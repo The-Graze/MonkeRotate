@@ -4,7 +4,7 @@ A mod for gorilla tag to move around in zero gravity on supported maps. To move 
 the mod works by searching the map, after its loaded, for an object with the name **"AirSwimConfig"**. if this object is found the mod will initialize using the values in **transform.localPosition** for its settings.
 - **localPostion.x** = the max speed you can go
 - **localPosition.y** = the accelleration applied to your arm swing
-- **localposition.x** = the drag value (untested but i'm assuming this sslows you down over time)
+- **localposition.z** = the drag value (untested but i'm assuming this sslows you down over time)
 
 # Adding support to your map
 to add support to your map, add a blank **GameObject** to your map called **"AirSwimConfig"**, this will enable the mod accross the entire map with the settings defined in its position as seen in the editor.
