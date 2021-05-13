@@ -109,7 +109,6 @@ namespace MonkeSwim
                     float precision = 0.001f;
                     Vector3 cameraOffset = new Vector3(0f, Camera.main.transform.forward.y, 0f);
 
-
                     float rightSpeed = 0f;
 
                     if (rightInput) {
@@ -240,6 +239,7 @@ namespace MonkeSwim
 
                         foreach (Collider areaTrigger in triggers) {
                             if (areaTrigger != null && areaTrigger.isTrigger) {
+                                Debug.Log("adding trigger");
                                 areaTrigger.gameObject.AddComponent<SwimTrigger>();
                             }
                         }
