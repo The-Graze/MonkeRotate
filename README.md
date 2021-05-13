@@ -16,7 +16,7 @@ for more options you can add these as child objects to your **AirSwimConfig** ob
 # Setting up individual zones
 Setting up individual zones is rather simple, add a blank **GameObject** as a child to **WaterSwimTriggers**, this objects position is used for the settings of this zone, add another child to this new GameObject and attach a collider to it with trigger enabled. use this objects transform to place to zone where ever you want in the map.
 
-##examples:
+#examples:
 - default:
 
 ![default example](https://raw.githubusercontent.com/AHauntedArmy/MonkeSwim/master/images/default%20example.PNG)
@@ -28,3 +28,6 @@ Setting up individual zones is rather simple, add a blank **GameObject** as a ch
 - using individual zones with unique settings:
 
 ![unique individual zone settings](https://raw.githubusercontent.com/AHauntedArmy/MonkeSwim/master/images/multiple%20zones%20example.PNG)
+
+#release
+release can be found [here](https://github.com/AHauntedArmy/MonkeSwim/releases/tag/release) with an included map i used for testing. to install create a folder in your plugins folder and copy over AirSwim.dll. for the map copy it into your custom maps folder.
