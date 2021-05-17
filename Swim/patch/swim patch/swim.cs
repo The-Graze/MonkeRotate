@@ -62,6 +62,7 @@ namespace MonkeSwim
                 direction = (velocityDirectionAccumulator / vectorAmount).normalized;
 
                 speed = newDir.magnitude;
+                Debug.Log("hand speed = " + speed);
             }
         }
 
@@ -207,12 +208,14 @@ namespace MonkeSwim
                 Transform useDefaults = airSwimConfig.transform.Find("AirSwimConfigDefault");
                 Transform globalSettings = airSwimConfig.transform.Find("AirSwimConfigGlobal");
 
+                //making sure thse flags are reset when you re-join a map so settings can be updated
+                useDefault = false;
+                useGlobal = false;
+
                 if (globalSettings != null) {
                     Debug.Log("use custom global settings");
-                    maxSwimSpeed = globalSettings.localPosition.x;
-                    swimMultiplier = globalSettings.localPosition.y;
-                    dragValue = globalSettings.localPosition.z;
-
+        
+                    SetStats(globalSettings.localPosition);
                     useGlobal = true;
 
                 }else if (useDefaults != null) {
@@ -228,6 +231,9 @@ namespace MonkeSwim
                     maxSwimSpeed = airSwimConfig.transform.localPosition.x;
                     swimMultiplier = airSwimConfig.transform.localPosition.y;
                     dragValue = airSwimConfig.transform.localPosition.z;
+
+                    SetStats(airSwimConfig.transform.localPosition);
+
                 }
 
                 if (waterSwim != null) {
