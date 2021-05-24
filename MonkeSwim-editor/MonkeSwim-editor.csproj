@@ -1,17 +1,13 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <PackageId>AirSwim</PackageId>
-    <Authors>A Haunted Army</Authors>
-    <Product>swim baby</Product>
-    <AssemblyName>MonkeSwim</AssemblyName>
-    <UserSecretsId>700a547b-5442-4aaf-80b2-af3c3c4c7fad</UserSecretsId>
+    <RootNamespace>MonkeSwim_editor</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <DefineConstants>TRACE;GAME</DefineConstants>
-  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Swim\Config Types\**\*.cs" Link="Config Types\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="0Harmony">
