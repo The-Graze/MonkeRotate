@@ -10,7 +10,14 @@ namespace MonkeSwim.Patch
     class MapEnter
     {
         [HarmonyPostfix, HarmonyPatch("JoinGame")]
-        private static void MapLoaded(MapLoader __instance, ref GameObject  ____mapInstance) { if (____mapInstance != null) Swim.StartMod(); }   
+        private static void MapLoaded(MapLoader __instance, ref GameObject ____mapInstance)
+        {
+            if (____mapInstance != null) {
+                Swim.StartMod();
+                Swim.defaultGraivty = Physics.gravity;
+                Swim.EnableMod(true);
+            }
+        }
     }
 
     [HarmonyPatch(typeof(Teleporter))]

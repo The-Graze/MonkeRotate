@@ -3,6 +3,7 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>MonkeSwim_editor</RootNamespace>
+    <AssemblyName>MonkeSwim</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,5 +45,9 @@
       <HintPath>..\Libs\Utilla.dll</HintPath>
     </Reference>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetDir)$(TargetName).dll&quot; &quot;F:\users\David\Documents\unity projects\GorillaTagMapProject\Assets\Scripts\$(TargetName).dll&quot;" />
+  </Target>
 
 </Project>

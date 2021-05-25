@@ -49,4 +49,8 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="copy /Y &quot;$(TargetDir)$(TargetName).dll&quot; &quot;D:\Programs\Steam Games\steamapps\common\Gorilla Tag\BepInEx\Plugins\MonkeSwim\$(TargetName).dll&quot;" />
+  </Target>
+
 </Project>

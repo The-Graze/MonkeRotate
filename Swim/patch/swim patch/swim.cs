@@ -62,7 +62,7 @@ namespace MonkeSwim
                 direction = (velocityDirectionAccumulator / vectorAmount).normalized;
 
                 speed = newDir.magnitude;
-                Debug.Log("hand speed = " + speed);
+                //Debug.Log("hand speed = " + speed);
             }
         }
 
@@ -70,16 +70,10 @@ namespace MonkeSwim
     }
 
     [HarmonyPatch(typeof(Player))]
-    internal class Swim
+    internal static class Swim
     {
         public static bool canFly = false;
-        public static float dragValue = 0f;
-        public static float swimMultiplier = 0f;
-        public static float maxSwimSpeed = 0f;
-
-        private static bool useDefault = false;
-        private static bool useGlobal = false;
-
+    
         private static Rigidbody playerRigidRef;
 
         private static InputDevice rInputDevice;
@@ -88,6 +82,16 @@ namespace MonkeSwim
         private static AverageVelocityDirection leftHand = null;
         private static AverageVelocityDirection rightHand = null;
 
+        private static Config.MonkeSwimConfig swimConfig;
+        private static Config.MonkeSwimSettings swimSettings;
+        private static Config.MonkeSwimSettings swimSettingsAverage;
+
+        //counts how many settings applied to swimSettings.
+        //in the case of overlapping zones, settings are an average of the combined settings
+        private static uint settingsApplied;
+
+        //since we are modify gravity, store the maps default for when you're not in a zone
+        public static Vector3 defaultGraivty;
 
         //player.update()
         //before function
@@ -98,56 +102,59 @@ namespace MonkeSwim
             Vector3 velocity = Vector3.zero;
 
             if (canFly) {
+                if (settingsApplied > 0 || swimConfig.EntireMap) {
+                    bool rightInput = CheckInput(rInputDevice);
+                    bool leftInput = CheckInput(lInputDevice);
 
-                bool rightInput = CheckInput(rInputDevice);
-                bool leftInput = CheckInput(lInputDevice);
+                    Vector3 leftVelocity = Vector3.zero;
+                    Vector3 rightVelocity = Vector3.zero;
 
-                Vector3 leftVelocity = Vector3.zero;
-                Vector3 rightVelocity = Vector3.zero;
+                    if (rightInput || leftInput) {
 
-                if (rightInput || leftInput) {
+                        float precision = 0.001f;
+                        Vector3 cameraOffset = new Vector3(0f, Camera.main.transform.forward.y, 0f);
 
-                    float precision = 0.001f;
-                    Vector3 cameraOffset = new Vector3(0f, Camera.main.transform.forward.y, 0f);
+                        float rightSpeed = 0f;
 
-                    float rightSpeed = 0f;
+                        if (rightInput) {
+                            rightHand.Update();
+                            rightSpeed = rightHand.speed;
 
-                    if (rightInput) {
-                        rightHand.Update();
-                        rightSpeed = rightHand.speed;
+                            if (rightSpeed >= precision && !float.IsNaN(rightSpeed)) 
+                                rightVelocity = (rightHand.direction + cameraOffset).normalized * (swimSettingsAverage.Acceleration * rightSpeed);
+                        }
 
-                        if (rightSpeed >= precision && !float.IsNaN(rightSpeed)) rightVelocity = (rightHand.direction + cameraOffset).normalized * (swimMultiplier * rightSpeed);
+                        float leftSpeed = 0f;
+
+                        if (leftInput) {
+                            leftHand.Update();
+                            leftSpeed = leftHand.speed;
+
+                            if (leftSpeed >= precision && !float.IsNaN(leftSpeed)) 
+                                leftVelocity = (leftHand.direction + cameraOffset).normalized * (swimSettingsAverage.Acceleration * rightSpeed);
+                        }
+
+                        //Debug.Log("right velocity: " + rightSpeed);
+                        //Debug.Log("left velocity: " + leftSpeed);
+
+                        //if the hands are still but buttons are still pressed, reset th accumulators to zero              
+                        if (rightSpeed == 0f) rightHand.Reset();
+                        if (leftSpeed == 0f) leftHand.Reset();
+
+                        velocity = leftVelocity + rightVelocity;
+
+                        //Debug.Log("velocity: " + velocity);
+
+                        //if no inputs then reset the accumulators
+                    } else {
+                        if (!rightInput) rightHand.Reset();
+                        if (!leftInput) leftHand.Reset();
                     }
 
-                    float leftSpeed = 0f;
-
-                    if (leftInput) {
-                        leftHand.Update();
-                        leftSpeed = leftHand.speed;
-
-                        if (leftSpeed >= precision && !float.IsNaN(leftSpeed)) leftVelocity = (leftHand.direction + cameraOffset).normalized * (swimMultiplier * rightSpeed);
-                    }
-
-                    //Debug.Log("right velocity: " + rightSpeed);
-                    //Debug.Log("left velocity: " + leftSpeed);
-
-                    //if the hands are still but buttons are still pressed, reset th accumulators to zero              
-                    if (rightSpeed == 0f) rightHand.Reset();
-                    if (leftSpeed == 0f) leftHand.Reset();
-
-                    velocity = leftVelocity + rightVelocity;
-
-                    //Debug.Log("velocity: " + velocity);
-
-                    //if no inputs then reset the accumulators
-                } else {
-                    if (!rightInput) rightHand.Reset();
-                    if (!leftInput) leftHand.Reset();
+                    //only go as fast as the maximum swim speed
+                    float speed = velocity.magnitude;
+                    if (speed > swimSettingsAverage.MaxSpeed) velocity = velocity.normalized * swimSettingsAverage.MaxSpeed;
                 }
-
-                //only go as fast as the maximum swim speed
-                float speed = velocity.magnitude;
-                if (speed > maxSwimSpeed) velocity = velocity.normalized * maxSwimSpeed;
             }
 
             __state = velocity;
@@ -160,13 +167,16 @@ namespace MonkeSwim
         internal static void Postfix(Player __instance, Vector3 __state)
         {
             if (canFly) {
-                bool rigidExists = (playerRigidRef != null);
-                if (__state != Vector3.zero && rigidExists) playerRigidRef.velocity += __state;
+                if (settingsApplied > 0 || swimConfig.EntireMap) {
+                    bool rigidExists = (playerRigidRef != null);
+                    if (__state != Vector3.zero && rigidExists) playerRigidRef.velocity += __state;
 
-                //so we don't end up flying too fast.
-                if (playerRigidRef.velocity.magnitude > maxSwimSpeed && rigidExists) playerRigidRef.velocity = playerRigidRef.velocity.normalized * maxSwimSpeed;
+                    //so we don't end up flying too fast.
+                    if (playerRigidRef.velocity.magnitude > swimSettingsAverage.MaxSpeed && rigidExists)
+                        playerRigidRef.velocity = playerRigidRef.velocity.normalized * swimSettingsAverage.MaxSpeed;
 
-                AverageVelocityDirection.lastParentPosition = __instance.transform.position;
+                    AverageVelocityDirection.lastParentPosition = __instance.transform.position;
+                }
             }
 
             //end of function
@@ -188,76 +198,104 @@ namespace MonkeSwim
             AverageVelocityDirection.SetPlayer(__instance);
             AverageVelocityDirection.lastParentPosition = __instance.transform.position;
 
+            swimConfig = null;
+            swimSettings = new Config.MonkeSwimSettings();
+            swimSettingsAverage = new Config.MonkeSwimSettings();
 
             //end of function
         }
 
+        //this function should only be called when map is loaded
         internal static void StartMod()
         {
-            //Debug.Log("attemempting to find air swim config");
+            //making sure all values are reset to zero when changing out a map
+            swimSettings.MaxSpeed = 0f;
+            swimSettings.Acceleration = 0f;
+            swimSettings.Resistence = 0f;
+            swimSettings.GravityAmount = 0f;
 
-            GameObject airSwimConfig = GameObject.Find("AirSwimConfig");
+            swimSettingsAverage.SetSettings(swimSettings);
 
-            Debug.Log("airswimconfig = " + (airSwimConfig != null).ToString());
+            swimConfig = null;
 
-            if (airSwimConfig != null) {
+            swimConfig = GameObject.FindObjectOfType<Config.MonkeSwimConfig>();
 
-                Debug.Log("air swim exists");
+            if (swimConfig != null) {
+                if (swimConfig.GlobalSwimSettings == null) swimConfig.GlobalSwimSettings = new Config.MonkeSwimSettings();
+                Debug.Log("MonkeSwimConfig found, mod will be enabled");
+                if (swimConfig.EntireMap) swimSettings.SetSettings(swimConfig.GlobalSwimSettings);
 
-                Transform waterSwim = airSwimConfig.transform.Find("WaterSwimTriggers");
-                Transform useDefaults = airSwimConfig.transform.Find("AirSwimConfigDefault");
-                Transform globalSettings = airSwimConfig.transform.Find("AirSwimConfigGlobal");
+                Debug.Log("global swim settings\n" + swimConfig.GlobalSwimSettings.Print());
 
-                //making sure thse flags are reset when you re-join a map so settings can be updated
-                useDefault = false;
-                useGlobal = false;
+            } else Debug.Log("monkeswimconfig is null");
+                
+        }
 
-                if (globalSettings != null) {
-                    Debug.Log("use custom global settings");
-        
-                    SetStats(globalSettings.localPosition);
-                    useGlobal = true;
+        public static void AddSettings(bool overrideGlobal, Config.MonkeSwimSettings settings)
+        {
+            if (!overrideGlobal) settings = swimConfig.GlobalSwimSettings;
 
-                }else if (useDefaults != null) {
-                    Debug.Log("use default settings");
-                    maxSwimSpeed = 6.5f;
-                    swimMultiplier = 1.1f;
-                    dragValue = 0f;
-
-                    useDefault = true;
-
-                } else { 
-                    Debug.Log("use custom settings in AirSwimConfig");
-                    maxSwimSpeed = airSwimConfig.transform.localPosition.x;
-                    swimMultiplier = airSwimConfig.transform.localPosition.y;
-                    dragValue = airSwimConfig.transform.localPosition.z;
-
-                    SetStats(airSwimConfig.transform.localPosition);
-
-                }
-
-                if (waterSwim != null) {
-                    GameObject waterObject = waterSwim.gameObject;
-
-                    if (waterObject != null) {
-                        Collider[] triggers = waterObject.GetComponentsInChildren<Collider>(true);
-                        Debug.Log("amount of potential triggers found: " + triggers.Length);
-
-                        foreach (Collider areaTrigger in triggers) {
-                            if (areaTrigger != null && areaTrigger.isTrigger) {
-                                Debug.Log("adding trigger");
-                                areaTrigger.gameObject.AddComponent<SwimTrigger>();
-                            }
-                        }
-
-                    }
-
-                    EnableMod(false);
-
-                } else EnableMod(true);
+            if (settingsApplied == 0 && swimConfig.EntireMap) swimSettings.SetSettings(settings);
+            else {
+                swimSettings.MaxSpeed += settings.MaxSpeed;
+                swimSettings.Acceleration += settings.Acceleration;
+                swimSettings.Resistence += settings.Resistence;
+                swimSettings.GravityAmount += settings.GravityAmount;
             }
 
+            ++settingsApplied;
+
+            //making sure last parent position is up to date if the mod is getting enabled when this function is called
+            AverageVelocityDirection.lastParentPosition = Player.Instance.transform.position;
+
+            Debug.Log("adding settings:\n" + settings.Print());
+
+            UpdateSettings();
         }
+
+        public static void RemoveSettings(bool overrideGlobal, Config.MonkeSwimSettings settings)
+        {
+            if (!overrideGlobal) settings = swimConfig.GlobalSwimSettings;
+
+            --settingsApplied;
+
+            if (settingsApplied == 0 && swimConfig.EntireMap) swimSettings.SetSettings(swimConfig.GlobalSwimSettings);
+            else {
+                swimSettings.MaxSpeed -= settings.MaxSpeed;
+                swimSettings.Acceleration -= settings.Acceleration;
+                swimSettings.Resistence -= settings.Resistence;
+                swimSettings.GravityAmount -= settings.GravityAmount;
+            }
+
+            Debug.Log("removing settings:\n" + settings.Print());
+
+            UpdateSettings();
+        }
+
+        public static void UpdateSettings()
+        {
+            if (settingsApplied == 0) {
+                //swim settings should be set to global settings in RemoveSettings()
+                swimSettingsAverage.SetSettings(swimSettings);
+                if (!swimConfig.EntireMap) {
+                    swimSettingsAverage.Resistence = 0f;
+                    swimSettingsAverage.GravityAmount = defaultGraivty.y;
+                }
+
+            } else { 
+                //lots of conditional statements just to make sure we don't accidentally divide by 0
+                swimSettingsAverage.MaxSpeed = (swimSettings.MaxSpeed != 0f ? swimSettings.MaxSpeed / settingsApplied : 0f);
+                swimSettingsAverage.Acceleration = (swimSettings.Acceleration != 0f ? swimSettings.Acceleration / settingsApplied : 0f);
+                swimSettingsAverage.Resistence = (swimSettings.Resistence != 0f ? swimSettings.Resistence / settingsApplied : 0f);
+                swimSettingsAverage.GravityAmount = (swimSettings.GravityAmount != 0f ? swimSettings.GravityAmount / settingsApplied : 0f);   
+            } 
+            
+            if(playerRigidRef != null) playerRigidRef.drag = swimSettingsAverage.Resistence;
+            Physics.gravity = new Vector3(0f, swimSettingsAverage.GravityAmount, 0f);
+            Debug.Log("Average settings:\n" + swimSettingsAverage.Print());
+        }
+
+
 
         private static bool CheckInput(InputDevice input)
         {
@@ -272,55 +310,25 @@ namespace MonkeSwim
 
         public static void EnableMod(bool toEnable)
         {
-            if (toEnable) {
-               //Debug.Log("mod enable is true");
-                if (playerRigidRef != null) {
-                    playerRigidRef.drag = dragValue;
-                    playerRigidRef.useGravity = false;
-                }
-
-            } else {
-                //Debug.Log("mod enable is false");
+            if (!toEnable) {
                 if (playerRigidRef != null) {
                     playerRigidRef.drag = 0f;
-                    playerRigidRef.useGravity = true;
                 }
+                canFly = false;
+
+            } else {
+                if (swimConfig != null) { 
+                UpdateSettings();
+                AverageVelocityDirection.lastParentPosition = Player.Instance.transform.position;
+                canFly = true;
+                }   
             }
 
-            canFly = toEnable;
             Debug.Log("canFly = " + canFly.ToString());
-        }
-
-        public static void SetStats(Vector3 stats)
-        {
-            if (useDefault || useGlobal) return;
-
-            maxSwimSpeed = stats.x;
-            swimMultiplier = stats.y;
-            dragValue = stats.z;
         }
 
         //end of class
     }
 
-    class SwimTrigger : MonoBehaviour
-    {
-        public void OnTriggerEnter(Collider collider)
-        {
-            if (!collider.gameObject.name.Equals("Body Collider")) return;
-
-            Debug.Log(collider.gameObject.name + " has entered trigger " + gameObject.name);
-            Debug.Log("setting stats of " + transform.parent.localPosition);
-            Swim.SetStats(transform.parent.localPosition);
-            Swim.EnableMod(true);
-        }
-        public void OnTriggerExit(Collider collider) 
-        {
-            if (!collider.gameObject.name.Equals("Body Collider")) return;
-
-            Debug.Log(collider.gameObject.name + " has left trigger " + gameObject.name);
-            Swim.EnableMod(false); 
-        }
-    }
 }
 
