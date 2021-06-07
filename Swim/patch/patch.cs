@@ -8,7 +8,7 @@ namespace MonkeSwim.Patch
         private static Harmony thisInstance;
 
         public static bool isPatched { get; private set; }
-        public static string thisID = "com.ahauntedarmy.gorillatag.airswim";
+        public static string thisID = "com.ahauntedarmy.gorillatag.monkeswim";
 
         internal static void ApplyPatch()
         {
