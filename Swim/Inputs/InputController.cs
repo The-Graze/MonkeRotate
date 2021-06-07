@@ -41,7 +41,7 @@ namespace MonkeSwim.Inputs
         public InputHelpers.Button FourthActionButton { get { return fourthAction.button; } set { fourthAction.button = value; } }
         public InputHelpers.Button FithActionButton { get { return fithAction.button; } set { fithAction.button = value; } }
         public InputHelpers.Button SixthActionButton { get { return sixthAction.button; } set { sixthAction.button = value; } }
-
+        
         public InputFeatureUsage<Vector2> PrimaryStickAxis { get { return primaryStickAxis.joyStick; } set { primaryStickAxis.joyStick = value; } }
         public InputFeatureUsage<Vector2> SecoundaryStickAxis { get { return secoundaryStickAxis.joyStick; } set { secoundaryStickAxis.joyStick = value; } }
 
