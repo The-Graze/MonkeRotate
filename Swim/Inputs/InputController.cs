@@ -70,19 +70,24 @@ namespace MonkeSwim.Inputs
             if (!inputDevice.isValid) return;
             if (!(controllerNode == XRNode.LeftHand || controllerNode == XRNode.RightHand)) return;
 
-            ProccessInputs(firstAction);
-            ProccessInputs(secondAction);
-            ProccessInputs(thirdAction);
-            ProccessInputs(fourthAction);
-            ProccessInputs(fithAction);
-            ProccessInputs(sixthAction);
 
-            ProccessInputs(primaryStickAxis);
-            ProccessInputs(secoundaryStickAxis);
+            // mutable structs are bad mmmkay.. this is supposed to be naughty
+            // for this use case though i don't think its bad at all, i want the value type behaviour
+            // just interally i need it to act like a reference type when having on function to modify
+            // all of them internally, if the function was publicly accessible then doing this is a bad idea
+            ProccessInputs(ref firstAction);
+            ProccessInputs(ref secondAction);
+            ProccessInputs(ref thirdAction);
+            ProccessInputs(ref fourthAction);
+            ProccessInputs(ref fithAction);
+            ProccessInputs(ref sixthAction);
+
+            ProccessInputs(ref primaryStickAxis);
+            ProccessInputs(ref secoundaryStickAxis);
         
         }
 
-        private void ProccessInputs(InputStateButton input)
+        private void ProccessInputs(ref InputStateButton input)
         {
             // looking at isPRessed in dnspy, it returns false if no input or no device
             bool buttonState = false;
@@ -105,7 +110,7 @@ namespace MonkeSwim.Inputs
            
         }
 
-        private void ProccessInputs(InputStateStick input)
+        private void ProccessInputs(ref InputStateStick input)
         {
             Vector2 axisValue = Vector2.zero;
             if (!inputDevice.TryGetFeatureValue(input.joyStick, out axisValue)) input.state = Vector2.zero;
