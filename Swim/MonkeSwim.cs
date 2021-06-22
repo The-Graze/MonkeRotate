@@ -1,7 +1,8 @@
 ﻿using System;
 using BepInEx;
 using Utilla;
-using MonkeSwim.Patch;
+
+using UnityEngine.XR;
 
 namespace MonkeSwim
 {
@@ -10,8 +11,7 @@ namespace MonkeSwim
     //[ForcePrivateLobby]
     public class MonkeSwim : BaseUnityPlugin
     {
-
-        void Awake()
+        public void Awake()
         {
             Patch.AirPatch.ApplyPatch();
         }

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.XR;
 using GorillaLocomotion;
 
-namespace MonkeSwim
+namespace MonkeSwim.Managers
 {
     //class for handling average direction vector of the players swing
     class AverageVelocityDirection

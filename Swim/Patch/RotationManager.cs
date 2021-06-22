@@ -6,10 +6,10 @@ using Photon.Voice.PUN;
 using UnityEngine;
 using UnityEngine.XR;
 
-namespace MonkeSwim.Managers
+namespace MonkeSwim.Patch
 {
     [HarmonyPatch]
-    internal static class RotationManager
+    internal static class RotationPatch
     {
         public static bool modEnabled = false;
 

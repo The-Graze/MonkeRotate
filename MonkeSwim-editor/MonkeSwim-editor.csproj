@@ -6,6 +6,14 @@
     <AssemblyName>MonkeSwim</AssemblyName>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DefineConstants>TRACE;EDITOR</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DefineConstants>TRACE;EDITOR</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Include="..\Swim\Config Types\**\*.cs" Link="Config Types\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
@@ -47,7 +55,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="copy /Y &quot;$(TargetDir)$(TargetName).dll&quot; &quot;F:\users\David\Documents\unity projects\GorillaTagMapProject\Assets\Scripts\$(TargetName).dll&quot;" />
+    <Exec Command="copy /Y &quot;$(TargetDir)$(TargetName).dll&quot; &quot;F:\users\David\Documents\unity projects\GorillaTagMapProject\Assets\MonkeSwim\Scripts\$(TargetName).dll&quot;" />
   </Target>
 
 </Project>
