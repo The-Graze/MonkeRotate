@@ -5,16 +5,20 @@ using Photon.Voice.PUN;
 
 using UnityEngine;
 using UnityEngine.XR;
+using Valve.VR;
 
 namespace MonkeSwim.Patch
 {
     [HarmonyPatch]
     internal static class RotationPatch
     {
-        public static bool modEnabled = false;
+        public static bool modEnabled = true;
 
         private static Quaternion axisLockedRotation; // players rotating if it was locked on global Vector3.up axis
         private static Quaternion playerUpRotation; // players up direction rotation in global space
+
+        public static Quaternion PlayerLockedRotation { get { return axisLockedRotation; } }
+        private static Quaternion PlayerUpRotation { get { return playerUpRotation; } }
 
         // need to save the rotation information before inputs are proccessed
         // update is called after all inputs are updated and physics steps are done
@@ -81,6 +85,10 @@ namespace MonkeSwim.Patch
                 // looks like on quest this makes the gorilla invisble when you bring up quest menu
                 if (XRSettings.loadedDeviceName == "Oculus" && ((__instance.isOfflineVRRig && !PhotonNetwork.InRoom) || (!__instance.isOfflineVRRig && PhotonNetwork.InRoom))) {
                     __instance.mainSkin.enabled = OVRManager.hasInputFocus;
+                }
+
+                if (OpenVR.Overlay != null && ((__instance.isOfflineVRRig && !PhotonNetwork.InRoom) || !__instance.isOfflineVRRig && PhotonNetwork.InRoom)) {
+                    __instance.mainSkin.enabled = !OpenVR.Overlay.IsDashboardVisible();
                 }
 
                 // looks like this stuff is for turning voice chat on or off

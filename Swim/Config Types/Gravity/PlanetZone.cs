@@ -11,10 +11,10 @@ namespace MonkeSwim.Config
         [SerializeField] protected bool alwaysRotate = true;
 
 #if EDITOR
-        public bool ShowWireSphere { get; set; }
+        public bool ShowWireSphere { get; set; } = true;
         public bool ShowSolidSphere { get; set; }
-        public Color WireSphereColour { get; set; }
-        public Color SolidSphereColour { get; set; }
+        public Color WireSphereColour { get; set; } = Color.green;
+        public Color SolidSphereColour { get; set; } = Color.green;
         public float RotationDistance { get { return rotationDistance; } private set { } }
 #endif
 
@@ -34,11 +34,11 @@ namespace MonkeSwim.Config
         protected override void UpdatedGravity()
         {
             // need to remove the gravity information from the previous frame before applying new information
-            RemoveGravity();
-            RemoveRotation();
+            // RemoveGravity();
+            // RemoveRotation();
 
             // find the new gravity direction
-            gravityDirection = CalculateGravity();
+            gravityDirection = FindPlayerOffset();
 
             // check if we should be rotating the player
             rotatePlayer = alwaysRotate || (rotatingPlayer && gravityDirection.sqrMagnitude < sqrDistance);
@@ -46,14 +46,22 @@ namespace MonkeSwim.Config
             // direction should be normalized
             gravityDirection = Vector3.Normalize(gravityDirection);
 
-            AddGravity();
-            AddRotation();
+            base.UpdatedGravity();
+            // AddGravity();
+            // AddRotation();
         }
 
         // override this for different gravity behaviour
-        protected virtual Vector3 CalculateGravity()
+        // player offset is used to find the gravity direction and player distance from gravity center
+        protected virtual Vector3 FindPlayerOffset()
         {
-            return playerCollided.transform.position - transform.position;
+            return playerCollided.gameObject.transform.position - gameObject.transform.position;
+        }
+
+        protected override void ResetSettings()
+        {
+            rotatePlayer = false;
+            base.ResetSettings();
         }
 #endif
     }

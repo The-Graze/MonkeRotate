@@ -1,20 +1,14 @@
-﻿using System;
-using BepInEx;
-using Utilla;
+﻿using BepInEx;
 
-using UnityEngine.XR;
 
 namespace MonkeSwim
 {
-    [BepInPlugin("org.ahauntedarmy.plugins.monkeswim", "MonkeSwim" , "0.1.0.4")]
+    [BepInPlugin(PluginInfo.GUID, PluginInfo.Name, PluginInfo.Version)]
     [BepInProcess("Gorilla Tag.exe")]
-    //[ForcePrivateLobby]
     public class MonkeSwim : BaseUnityPlugin
     {
-        public void Awake()
-        {
-            Patch.AirPatch.ApplyPatch();
-        }
+        // don't need anything here
+        // just need the dll loaded into the game
     }
 
 }

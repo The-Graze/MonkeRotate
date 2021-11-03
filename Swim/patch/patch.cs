@@ -3,18 +3,18 @@ using System.Reflection;
 
 namespace MonkeSwim.Patch
 {
-    class AirPatch
+    class MonkeSwimPatch
     {
         private static Harmony thisInstance;
 
         public static bool isPatched { get; private set; }
-        public static string thisID = "com.ahauntedarmy.gorillatag.monkeswim";
+        public static string instanceID = PluginInfo.GUID;
 
         internal static void ApplyPatch()
         {
             if (!isPatched)
             {
-                if (thisInstance == null) { thisInstance = new Harmony(thisID); }
+                if (thisInstance == null) { thisInstance = new Harmony(instanceID); }
                 thisInstance.PatchAll(Assembly.GetExecutingAssembly());
                 isPatched = true;
             }
@@ -24,7 +24,7 @@ namespace MonkeSwim.Patch
         {
             if (thisInstance != null && isPatched)
             {
-                thisInstance.UnpatchAll(thisID);
+                thisInstance.UnpatchAll(instanceID);
                 isPatched = false;
             }
         }

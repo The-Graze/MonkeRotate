@@ -16,6 +16,8 @@
 
   <ItemGroup>
     <Compile Include="..\Swim\Config Types\**\*.cs" Link="Config Types\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Swim\Managers\Manager.cs" Link="Managers\Manager.cs" />
+    <Compile Include="..\Swim\Managers\Swim\SwimManager.cs" Link="SwimManager.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,9 +50,6 @@
     </Reference>
     <Reference Include="UnityEngine.XRModule">
       <HintPath>..\Libs\UnityEngine.XRModule.dll</HintPath>
-    </Reference>
-    <Reference Include="Utilla">
-      <HintPath>..\Libs\Utilla.dll</HintPath>
     </Reference>
   </ItemGroup>
 

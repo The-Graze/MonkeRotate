@@ -48,6 +48,9 @@
     <Reference Include="PhotonVoice.PUN">
       <HintPath>..\Libs\PhotonVoice.PUN.dll</HintPath>
     </Reference>
+    <Reference Include="SteamVR">
+      <HintPath>..\Libs\SteamVR.dll</HintPath>
+    </Reference>
     <Reference Include="Unity.XR.Interaction.Toolkit">
       <HintPath>..\Libs\Unity.XR.Interaction.Toolkit.dll</HintPath>
     </Reference>
@@ -68,9 +71,6 @@
     </Reference>
     <Reference Include="UnityEngine.XRModule">
       <HintPath>..\Libs\UnityEngine.XRModule.dll</HintPath>
-    </Reference>
-    <Reference Include="Utilla">
-      <HintPath>..\Libs\Utilla.dll</HintPath>
     </Reference>
   </ItemGroup>
 
