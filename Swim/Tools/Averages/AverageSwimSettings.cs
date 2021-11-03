@@ -46,6 +46,7 @@ namespace MonkeSwim.Tools.Averages
         {
             return new SwimSettingsAverage(settings.maxSpeed + newSettings.MaxSpeed,
                                            settings.acceleration + newSettings.Acceleration,
+                                           settings.resistence + newSettings.Resistence,
                                            settings.settingsAmount + 1);
         }
 
@@ -53,6 +54,7 @@ namespace MonkeSwim.Tools.Averages
         {
             return new SwimSettingsAverage(settings.maxSpeed - newSettings.MaxSpeed,
                                            settings.acceleration - newSettings.Acceleration,
+                                           settings.resistence - newSettings.Resistence,
                                            settings.settingsAmount - 1);
         }
 
