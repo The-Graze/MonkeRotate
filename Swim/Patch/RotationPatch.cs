@@ -1,4 +1,5 @@
 ﻿using HarmonyLib;
+using System.Reflection;
 
 using Photon.Pun;
 using Photon.Voice.PUN;
@@ -12,23 +13,258 @@ namespace MonkeSwim.Patch
     [HarmonyPatch]
     internal static class RotationPatch
     {
+        private static MethodInfo StoreVelocities;
+        private static MethodInfo PositionWithOffset;
+        private static MethodInfo CurrentRightHandPosition;
+        private static MethodInfo CurrentLeftHandPosition;
+        private static MethodInfo IterativeCollisionSphereCast;
+        private static MethodInfo AntiTeleportTechnology;
+
         public static bool modEnabled = true;
 
         private static Quaternion axisLockedRotation; // players rotating if it was locked on global Vector3.up axis
         private static Quaternion playerUpRotation; // players up direction rotation in global space
 
-        public static Quaternion PlayerLockedRotation { get { return axisLockedRotation; } }
-        private static Quaternion PlayerUpRotation { get { return playerUpRotation; } }
+        private static Quaternion bodyRotation; // players body rotation for the gorilla model and body collider
+        private static Quaternion bodyLockedRotation;
 
-        // need to save the rotation information before inputs are proccessed
-        // update is called after all inputs are updated and physics steps are done
+        public static Quaternion PlayerLockedRotation { get { return axisLockedRotation; } }
+        public static Quaternion PlayerUpRotation { get { return playerUpRotation; } }
+
+        public static Quaternion BodyRotation { get { return bodyRotation; } }
+        public static Quaternion BodyLockedRotation { get { return bodyLockedRotation; } }
+
+        public static void Init()
+        {
+            StoreVelocities = AccessTools.Method(typeof(GorillaLocomotion.Player), "StoreVelocities");
+            CurrentLeftHandPosition = AccessTools.Method(typeof(GorillaLocomotion.Player), "CurrentLeftHandPosition");
+            CurrentRightHandPosition = AccessTools.Method(typeof(GorillaLocomotion.Player), "CurrentRightHandPosition");
+            AntiTeleportTechnology = AccessTools.Method(typeof(GorillaLocomotion.Player), "AntiTeleportTechnology");
+            
+            PositionWithOffset = AccessTools.Method(typeof(GorillaLocomotion.Player), "PositionWithOffset", new System.Type[]{typeof(Transform), typeof(Vector3) });
+            IterativeCollisionSphereCast = AccessTools.Method(typeof(GorillaLocomotion.Player), "IterativeCollisionSphereCast", new System.Type[] { typeof(Vector3), typeof(float), typeof(Vector3),
+                                                                                                                                                                     typeof(float), typeof(Vector3),
+                                                                                                                                                                     typeof(bool), typeof(float) });
+        }
+
         [HarmonyPatch(typeof(GorillaLocomotion.Player))]
         [HarmonyPrefix, HarmonyPatch("Update", MethodType.Normal)]
-        internal static void Prefix_PlayerUpdate(GorillaLocomotion.Player __instance)
+        internal static bool Prefix_PlayerUpdate(GorillaLocomotion.Player __instance, ref bool ___leftHandColliding, 
+                                                                                      ref bool ___rightHandColliding,
+                                                                                      ref bool ___wasLeftHandTouching,
+                                                                                      ref bool ___wasRightHandTouching,
+                                                                                      ref float ___slipPercentage,
+                                                                                      ref Vector3 ___rigidBodyMovement, 
+                                                                                      ref Vector3 ___firstIterationLeftHand,
+                                                                                      ref Vector3 ___firstIterationRightHand,
+                                                                                      ref Vector3 ___distanceTraveled,
+                                                                                      ref Vector3 ___lastLeftHandPosition,
+                                                                                      ref Vector3 ___lastRightHandPosition,
+                                                                                      ref Vector3 ___finalPosition,
+                                                                                      ref Vector3 ___denormalizedVelocityAverage,
+                                                                                      ref Rigidbody ___playerRigidBody,
+                                                                                      ref RaycastHit ___hitInfo)
         {
-            if (!modEnabled) return;
+            if (!modEnabled) return true;
 
             SavePlayerRotation(__instance);
+
+            ___leftHandColliding = false;
+            ___leftHandColliding = false;
+            ___rigidBodyMovement = Vector3.zero;
+            ___firstIterationLeftHand = Vector3.zero;
+            ___firstIterationRightHand = Vector3.zero;
+
+            __instance.bodyCollider.transform.position = (Vector3)PositionWithOffset.Invoke(__instance, new object[] { __instance.headCollider.transform, __instance.bodyOffset });
+            __instance.bodyCollider.transform.rotation = bodyRotation;
+
+            AntiTeleportTechnology.Invoke(__instance, null);
+
+            Vector3 downDir = __instance.turnParent.transform.up * -1f;
+
+
+            // calculate left hand movement
+            Vector3 currentHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
+            ___distanceTraveled = currentHandPosition - ___lastLeftHandPosition + downDir * 2f * 9.8f * Time.deltaTime * Time.deltaTime;
+
+            // left hand collision check
+            bool itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, new object[] { ___lastLeftHandPosition, 
+                                                                                                        __instance.minimumRaycastDistance, 
+                                                                                                        ___distanceTraveled, 
+                                                                                                        __instance.defaultPrecision, 
+                                                                                                        ___finalPosition, 
+                                                                                                        true,
+                                                                                                        ___slipPercentage });
+            
+            if (itCollideResult) {
+                
+                if (___wasLeftHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
+                    ___firstIterationLeftHand = ___lastLeftHandPosition - currentHandPosition;
+
+                } else {
+                    ___firstIterationLeftHand = ___finalPosition - currentHandPosition;
+                }
+
+                ___playerRigidBody.velocity = Vector3.zero;
+                ___leftHandColliding = true;
+                __instance.leftHandMaterialTouchIndex = __instance.currentMaterialIndex;
+                __instance.leftHandSurfaceOverride = __instance.currentOverride;
+            }
+
+
+            // calculate right hand movement
+            currentHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
+            ___distanceTraveled = currentHandPosition - ___lastRightHandPosition + downDir * 2f * 9.8f * Time.deltaTime * Time.deltaTime;
+
+            // right hand collision check
+            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, new object[] { ___lastRightHandPosition, 
+                                                                                                   __instance.minimumRaycastDistance, 
+                                                                                                   ___distanceTraveled, 
+                                                                                                   __instance.defaultPrecision, 
+                                                                                                   ___finalPosition, 
+                                                                                                   true, 
+                                                                                                   ___slipPercentage });
+
+            if (itCollideResult) {
+                
+                if(___wasRightHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
+                    ___firstIterationRightHand = ___lastRightHandPosition - currentHandPosition;
+
+                } else {
+                    ___firstIterationRightHand = ___finalPosition - currentHandPosition;
+                }
+
+                ___playerRigidBody.velocity = Vector3.zero;
+                ___rightHandColliding = true;
+                __instance.rightHandMaterialTouchIndex = __instance.currentMaterialIndex;
+                __instance.rightHandSurfaceOverride = __instance.currentOverride;
+            }
+
+            if ((___leftHandColliding || ___wasLeftHandTouching) && (___rightHandColliding || ___wasRightHandTouching)) {
+                ___rigidBodyMovement = (___firstIterationLeftHand + ___firstIterationRightHand) / 2f;
+
+            } else {
+                ___rigidBodyMovement = ___firstIterationLeftHand + ___firstIterationRightHand;
+            }
+
+
+            // head collision check
+            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, new object[] { __instance.lastHeadPosition, 
+                                                                                                   __instance.headCollider.radius, 
+                                                                                                   __instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition, 
+                                                                                                   __instance.defaultPrecision, 
+                                                                                                   ___finalPosition, 
+                                                                                                   false, 
+                                                                                                   ___slipPercentage });
+
+            if (itCollideResult) {
+                ___rigidBodyMovement = ___finalPosition - __instance.lastHeadPosition;
+
+                bool raycastResult = Physics.Raycast( __instance.lastHeadPosition,
+                                                      __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
+                                                      out ___hitInfo,
+                                                      (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
+                                                      __instance.locomotionEnabledLayers.value);
+
+                if (raycastResult) {
+                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
+                }
+            }
+
+            if (___rigidBodyMovement != Vector3.zero) {
+                __instance.transform.position = __instance.transform.position + ___rigidBodyMovement;
+            }
+
+            __instance.lastHeadPosition = __instance.headCollider.transform.position;
+
+
+            // calclulate left hand movement again
+            currentHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
+            ___distanceTraveled = currentHandPosition - ___lastLeftHandPosition;
+
+            // left hand collision check again
+            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, new object[] { ___lastLeftHandPosition,
+                                                                                                   __instance.minimumRaycastDistance, 
+                                                                                                   ___distanceTraveled,
+                                                                                                   __instance.defaultPrecision,
+                                                                                                   ___finalPosition,
+                                                                                                   (!___leftHandColliding && !___wasLeftHandTouching) || (!___rightHandColliding && !___wasRightHandTouching),
+                                                                                                   ___slipPercentage });
+
+            if (itCollideResult) {
+                ___lastLeftHandPosition = ___finalPosition;
+                ___leftHandColliding = true;
+                __instance.leftHandMaterialTouchIndex = __instance.currentMaterialIndex;
+                __instance.leftHandSurfaceOverride = __instance.currentOverride;
+
+            } else {
+                ___lastLeftHandPosition = currentHandPosition;
+            }
+
+
+            //calculate right hand movement again
+            currentHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
+            ___distanceTraveled = currentHandPosition - ___lastRightHandPosition;
+
+            // right hand collision check again
+            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, new object[] { ___lastRightHandPosition,
+                                                                                                   __instance.minimumRaycastDistance,
+                                                                                                   ___distanceTraveled,
+                                                                                                   __instance.defaultPrecision,
+                                                                                                   ___finalPosition,
+                                                                                                   (!___leftHandColliding && !___wasLeftHandTouching) || (!___rightHandColliding && !___wasRightHandTouching),
+                                                                                                   ___slipPercentage });
+
+            if (itCollideResult) {
+                ___lastRightHandPosition = ___finalPosition;
+                ___rightHandColliding = true;
+                __instance.rightHandMaterialTouchIndex = __instance.currentMaterialIndex;
+                __instance.rightHandSurfaceOverride = __instance.currentOverride;
+
+            } else {
+                ___lastRightHandPosition = currentHandPosition;
+            }
+
+            StoreVelocities.Invoke(__instance, null);
+
+            if ((___rightHandColliding || ___leftHandColliding) && !__instance.disableMovement && !__instance.didATurn && ___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
+                if (___denormalizedVelocityAverage.magnitude * __instance.jumpMultiplier > __instance.maxJumpSpeed) {
+                    ___playerRigidBody.velocity = ___denormalizedVelocityAverage.normalized * __instance.maxJumpSpeed;
+
+                } else {
+                    ___playerRigidBody.velocity = __instance.jumpMultiplier * ___denormalizedVelocityAverage;
+                }
+            }
+
+
+            if (___leftHandColliding && ((Vector3)CurrentLeftHandPosition.Invoke(__instance, null)).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
+                                                                                                                                                                   __instance.minimumRaycastDistance * __instance.defaultPrecision,
+                                                                                                                                                                   (Vector3)CurrentLeftHandPosition.Invoke(__instance, null) - __instance.headCollider.transform.position,
+                                                                                                                                                                   out ___hitInfo,
+                                                                                                                                                                   ((Vector3)CurrentLeftHandPosition.Invoke(__instance, null) - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
+                                                                                                                                                                   __instance.locomotionEnabledLayers.value))
+            {
+                ___lastLeftHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
+                ___leftHandColliding = false;
+            }
+
+            if (___rightHandColliding && ((Vector3)CurrentRightHandPosition.Invoke(__instance, null)).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
+                                                                                                                                                                    __instance.minimumRaycastDistance * __instance.defaultPrecision,
+                                                                                                                                                                    (Vector3)CurrentRightHandPosition.Invoke(__instance, null) - __instance.headCollider.transform.position,
+                                                                                                                                                                    out ___hitInfo,
+                                                                                                                                                                    ((Vector3)CurrentRightHandPosition.Invoke(__instance, null) - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
+                                                                                                                                                                    __instance.locomotionEnabledLayers.value)) 
+            {
+                ___lastRightHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
+                ___rightHandColliding = false;
+            }
+
+            __instance.leftHandFollower.position = ___lastLeftHandPosition;
+            __instance.rightHandFollower.position = ___lastRightHandPosition;
+            ___wasLeftHandTouching = ___leftHandColliding;
+            ___wasRightHandTouching = ___rightHandColliding;
+
+            return false;
         }
 
         [HarmonyPatch(typeof(VRRig))]
@@ -55,13 +291,15 @@ namespace MonkeSwim.Patch
                 Transform camera = __instance.mainCamera.transform;
 
                 //converting camera's rotation to local and saving its y euler value
-                float cameraY = (Quaternion.Inverse(__instance.playerOffsetTransform.rotation) * camera.rotation).eulerAngles.y;
+                // float cameraY = (Quaternion.Inverse(__instance.playerOffsetTransform.rotation) * camera.rotation).eulerAngles.y;
 
                 //set the gorillas rotation based on the cameras Y value
-                gorilla.eulerAngles = new Vector3(0f, cameraY, 0f);
+                // gorilla.eulerAngles = new Vector3(0f, cameraY, 0f);
 
                 //convert the rotation back to global space
-                gorilla.rotation = __instance.playerOffsetTransform.rotation * gorilla.rotation;
+                // gorilla.rotation = __instance.playerOffsetTransform.rotation * gorilla.rotation;
+
+                gorilla.rotation = bodyRotation;
 
                 //set the gorilla position with the offests rotated
                 gorilla.position = camera.position + (__instance.headConstraint.rotation * __instance.head.trackingPositionOffset) + (gorilla.rotation * __instance.headBodyOffset);
@@ -207,6 +445,10 @@ namespace MonkeSwim.Patch
 
             //save the player up rotation in global space
             playerUpRotation = Quaternion.FromToRotation(Vector3.up, playerTransform.up);
+
+            float cameraY = (Quaternion.Inverse(playerInstance.turnParent.transform.rotation) * playerInstance.headCollider.transform.rotation).eulerAngles.y;
+            bodyLockedRotation = Quaternion.Euler(0f, cameraY, 0f);
+            bodyRotation = bodyLockedRotation * playerTransform.rotation;
         }
     }
 }

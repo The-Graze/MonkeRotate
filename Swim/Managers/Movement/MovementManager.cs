@@ -154,12 +154,10 @@ namespace MonkeSwim.Managers
 
         public void RotatePlayer(Vector3 direction, float rotationSpeed)
         {
-            /*
             Quaternion newRotation = Quaternion.FromToRotation(playerTurnParent.transform.up, direction) * playerTurnParent.transform.rotation;
-            newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed);
+            newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * Time.deltaTime);
 
             playerTurnParent.transform.rotation = newRotation;
-            */
         }
 
         public void AddPlayerVelocity(Vector3 direction, float speed, float max)

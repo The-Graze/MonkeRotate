@@ -38,6 +38,7 @@ namespace MonkeSwim.Tools
 
         public static void TryUpdateAndClampThis(this ref float current, float delta, float max)
         {
+            if (max == 0f) return;
 
             if (max > 0f) {
                 if (max > current) {
