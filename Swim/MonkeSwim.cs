@@ -7,8 +7,10 @@ namespace MonkeSwim
     [BepInProcess("Gorilla Tag.exe")]
     public class MonkeSwim : BaseUnityPlugin
     {
-        // don't need anything here
-        // just need the dll loaded into the game
+        public void Awake()
+        {
+            Patch.RotationPatch.Init();
+        }
     }
 
 }
