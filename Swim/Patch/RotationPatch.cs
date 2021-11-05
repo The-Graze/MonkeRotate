@@ -37,24 +37,24 @@ namespace MonkeSwim.Patch
         public static void Init()
         {
             StoreVelocities = AccessTools.Method(typeof(GorillaLocomotion.Player), "StoreVelocities");
-            Debug.Log("StoreVelocities == null? " + (StoreVelocities == null));
+            // Debug.Log("StoreVelocities == null? " + (StoreVelocities == null));
 
             CurrentLeftHandPosition = AccessTools.Method(typeof(GorillaLocomotion.Player), "CurrentLeftHandPosition");
-            Debug.Log("CurrentLeftHandPosition == null? " + (CurrentLeftHandPosition == null));
+            // Debug.Log("CurrentLeftHandPosition == null? " + (CurrentLeftHandPosition == null));
 
             CurrentRightHandPosition = AccessTools.Method(typeof(GorillaLocomotion.Player), "CurrentRightHandPosition");
-            Debug.Log("CurrentRightHandPosition == null? " + (CurrentRightHandPosition == null));
+            // Debug.Log("CurrentRightHandPosition == null? " + (CurrentRightHandPosition == null));
 
             AntiTeleportTechnology = AccessTools.Method(typeof(GorillaLocomotion.Player), "AntiTeleportTechnology");
-            Debug.Log("AntiTeleportTechnology == null? " + (AntiTeleportTechnology == null));
+            // Debug.Log("AntiTeleportTechnology == null? " + (AntiTeleportTechnology == null));
 
             PositionWithOffset = AccessTools.Method(typeof(GorillaLocomotion.Player), "PositionWithOffset", new System.Type[]{typeof(Transform), typeof(Vector3) });
-            Debug.Log("PositionWithOffset == null? " + (PositionWithOffset == null));
+            // Debug.Log("PositionWithOffset == null? " + (PositionWithOffset == null));
 
             IterativeCollisionSphereCast = AccessTools.Method(typeof(GorillaLocomotion.Player), "IterativeCollisionSphereCast", new System.Type[] { typeof(Vector3), typeof(float), typeof(Vector3),
                                                                                                                                                                      typeof(float), typeof(Vector3).MakeByRefType(),
                                                                                                                                                                      typeof(bool), typeof(float).MakeByRefType() });
-            Debug.Log("IterativeCollisionSphereCast == null? " + (IterativeCollisionSphereCast == null));
+            // Debug.Log("IterativeCollisionSphereCast == null? " + (IterativeCollisionSphereCast == null));
         }
 
         [HarmonyPatch(typeof(GorillaLocomotion.Player))]
@@ -233,7 +233,7 @@ namespace MonkeSwim.Patch
                 }
             }
 
-            if (___leftHandColliding && leftHandPosition.magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
+            if (___leftHandColliding && (leftHandPosition - ___lastLeftHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
                                                                                                                        __instance.minimumRaycastDistance * __instance.defaultPrecision,
                                                                                                                        leftHandPosition - __instance.headCollider.transform.position,
                                                                                                                        out hitInfo,
@@ -246,7 +246,7 @@ namespace MonkeSwim.Patch
 
             ___hitInfo = hitInfo;
 
-            if (___rightHandColliding && rightHandPosition.magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
+            if (___rightHandColliding && (rightHandPosition - ___lastRightHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
                                                                                                                          __instance.minimumRaycastDistance * __instance.defaultPrecision,
                                                                                                                          rightHandPosition - __instance.headCollider.transform.position,
                                                                                                                          out hitInfo,
