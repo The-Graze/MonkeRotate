@@ -10,6 +10,7 @@ namespace MonkeSwim
         public void Awake()
         {
             Patch.RotationPatch.Init();
+            Patch.MonkeSwimPatch.ApplyPatch();
         }
     }
 
