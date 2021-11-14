@@ -75,6 +75,7 @@ namespace MonkeSwim.Managers
             if (Instance == this) {
                 Instance = null;
                 VmodMonkeMapLoader.Events.OnMapEnter -= MapEnterCallback;
+                Patch.MonkeSwimPatch.RemovePatch();
             }
 
         }
@@ -91,6 +92,7 @@ namespace MonkeSwim.Managers
                             netRot.enabled = true;
                         }
 
+                        Patch.RotationPatch.modEnabled = true;
                         Patch.MonkeSwimPatch.ApplyPatch();
                         break;
                     }
@@ -104,7 +106,7 @@ namespace MonkeSwim.Managers
                 netRot.enabled = false;
             }
 
-            Patch.MonkeSwimPatch.RemovePatch();
+            Patch.RotationPatch.modEnabled = false;
         }
 #endif
     }

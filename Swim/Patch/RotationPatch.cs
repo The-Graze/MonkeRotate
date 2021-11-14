@@ -24,7 +24,7 @@ namespace MonkeSwim.Patch
         // reflection methods for VRRig lateupdate
         private static MethodInfo CheckForEarlyAccess;
 
-        public static bool modEnabled = true;
+        public static bool modEnabled = false;
 
         private static Quaternion axisLockedRotation; // players rotating if it was locked on global Vector3.up axis
         private static Quaternion playerUpRotation; // players up direction rotation in global space

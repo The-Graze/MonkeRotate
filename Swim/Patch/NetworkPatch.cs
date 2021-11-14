@@ -19,7 +19,7 @@ namespace MonkeSwim.Patch
             set {
                 if (!(value == null || value == playerPhotonView)) {
                     playerPhotonView = value;
-                    playerPhotonView.ObservedComponents.Add(this);
+                    OnEnable();
                 }
             }
         }
@@ -28,13 +28,18 @@ namespace MonkeSwim.Patch
         {
             Debug.Log("NetworkRotation: added rotation sync to network");
 
-            playerPhotonView?.ObservedComponents.Add(this);
+            if (playerPhotonView != null && !playerPhotonView.ObservedComponents.Contains(this)) {
+                playerPhotonView.ObservedComponents.Add(this);
+            }
         }
 
         void OnDisable()
         {
             Debug.Log("NetworkRotation: removed rotation sync from network");
-            playerPhotonView?.ObservedComponents.Remove(this);
+
+            if (playerPhotonView != null && playerPhotonView.ObservedComponents.Contains(this)) {
+                playerPhotonView?.ObservedComponents.Remove(this);
+            }
         }
 
         void IPunObservable.OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
@@ -85,6 +90,7 @@ namespace MonkeSwim.Patch
             NetworkRotation networkRotation = __instance.gameObject.AddComponent<NetworkRotation>();
             networkRotation.NetworkedPlayer = __instance;
             networkRotation.PlayerPhotonView = __instance.photonView;
+            networkRotation.enabled = RotationPatch.modEnabled;
         }
     }
 }

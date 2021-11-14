@@ -40,9 +40,6 @@ namespace MonkeSwim.Managers
             get { return Camera.main.transform.forward; }
         }
 
-        public void RegisterRotationIntent() => ++rotatePlayerAmount;
-        public void DeRegisterRotationIntent() => --rotatePlayerAmount;
-
         public void Awake()
         {
             this.enabled = false;
@@ -57,7 +54,6 @@ namespace MonkeSwim.Managers
         {
             VmodMonkeMapLoader.Events.OnMapEnter -= MapLeftCallback;
         }
-
 
         // make sure we don't go passed terminal speed if other velocity modifiers are present
         public void LateUpdate()
@@ -77,6 +73,16 @@ namespace MonkeSwim.Managers
             newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * Time.deltaTime);
 
             playerTurnParent.transform.rotation = newRotation;
+        }
+
+        public void RegisterRotationIntent(bool intent)
+        {
+            if (intent) {
+                ++rotatePlayerAmount;
+
+            } else {
+                --rotatePlayerAmount;
+            }
         }
 
         public void AddPlayerVelocity(Vector3 direction, float speed, float max)

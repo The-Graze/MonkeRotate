@@ -74,7 +74,8 @@ namespace MonkeSwim.Config
                 movementManager.DisableGravity(true);
             }
 
-            if (rotationIntent) movementManager.RegisterRotationIntent();
+            if (rotationIntent) movementManager.RegisterRotationIntent(true);
+
             UpdatedGravity();
         }
 
@@ -90,7 +91,7 @@ namespace MonkeSwim.Config
                 movementManager.DisableGravity(false);
             }
 
-            movementManager.DeRegisterRotationIntent();
+            if(rotationIntent) movementManager.RegisterRotationIntent(false);
             ResetSettings();
 
         }
@@ -105,7 +106,9 @@ namespace MonkeSwim.Config
         //main function for applying gravity each frame
         protected virtual void UpdatedGravity()
         {
-            movementManager.AddPlayerVelocity(gravityDirection, gravityStrength, maxGravityStrength);
+            if (gravityStrength != 0) {
+                movementManager.AddPlayerVelocity(gravityDirection, gravityStrength, maxGravityStrength);
+            }
 
             if (rotatePlayer) {
                 movementManager.RotatePlayer(gravityDirection, rotationSpeed);
