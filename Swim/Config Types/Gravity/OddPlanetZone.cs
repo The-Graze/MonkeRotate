@@ -28,8 +28,8 @@ namespace MonkeSwim.Config
 
         public override void Awake()
         {
-            inverseRotation = Quaternion.Inverse(transform.rotation);
             base.Awake();
+            inverseRotation = Quaternion.Inverse(transform.rotation);
         }
 
         protected override Vector3 FindPlayerOffset()

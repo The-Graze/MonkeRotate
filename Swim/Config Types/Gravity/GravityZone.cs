@@ -14,11 +14,17 @@ namespace MonkeSwim.Config
         public float maxGravityStrength;
 
         [Tooltip("enable this for the games global gravity to apply")]
-        [SerializeField] public bool UseGravity = false;
+        [SerializeField] public bool UseWorldGravity = false;
 
         [Header("Rotation Settings")]
         [SerializeField] protected bool rotatePlayer;
         [SerializeField] protected float rotationSpeed;
+
+        protected bool rotationIntent;
+
+        public bool RotationIntent {
+            get { return rotationIntent; }
+        }
 
 #if EDITOR
         public bool showDirection { get; set; } = true;
@@ -33,18 +39,16 @@ namespace MonkeSwim.Config
 
         public virtual void Awake()
         {
-            // idk wtf i was thinking here
-            // gravityDirection = (gameObject.transform.up * gravityStrength).normalized;
-
             gravityDirection = gameObject.transform.up;
+            rotationIntent = rotatePlayer;
 
+            /*
             Debug.Log("GravityZone: Awake");
             Debug.Log("GravityZone: gravityStrength: " + gravityStrength);
             Debug.Log("GravityZone: maxGravityStrength: " + maxGravityStrength);
             Debug.Log("GravityZone: rotatePlayer: " + rotatePlayer);
             Debug.Log("GravityZone: rotationSpeed: " + rotationSpeed);
-
-            // gravityStrength *= 0.01f;
+            */
         }
 
         public virtual void Start()
@@ -63,19 +67,15 @@ namespace MonkeSwim.Config
             if (playerCollided == null && collider.name.Equals("Body Collider")) playerCollided = collider;
             else return;
 
-            if (UseGravity) {
+            if (UseWorldGravity) {
                 movementManager.EnableGravity(true);
 
             } else {
                 movementManager.DisableGravity(true);
             }
 
+            if (rotationIntent) movementManager.RegisterRotationIntent();
             UpdatedGravity();
-
-            /*
-            AddGravity();
-            AddRotation();
-            */
         }
 
         public void OnTriggerExit(Collider collider)
@@ -83,20 +83,18 @@ namespace MonkeSwim.Config
             if (playerCollided != collider) return;
 
 
-            if (UseGravity) {
+            if (UseWorldGravity) {
                 movementManager.EnableGravity(false);
 
             } else {
                 movementManager.DisableGravity(false);
             }
 
+            movementManager.DeRegisterRotationIntent();
             ResetSettings();
 
-            /*
-            RemoveGravity();
-            RemoveRotation();    
-            */
         }
+
         public void OnTriggerStay(Collider collider)
         {
             if (playerCollided != collider) return;
@@ -118,30 +116,6 @@ namespace MonkeSwim.Config
         {
             playerCollided = null;
         }
-
-        /*
-        protected void AddGravity()
-        {
-            movementManager.AddDirection(gravityDirection * gravityStrength, gravityStrength, MovementManager.DirectionType.Gravity);
-        }
-
-        protected void RemoveGravity()
-        {
-            movementManager.RemoveDirection(gravityDirection * gravityStrength, gravityStrength, MovementManager.DirectionType.Gravity);
-        }
-
-        protected void AddRotation()
-        {
-            if (!rotatePlayer) return;
-            movementManager.AddDirection(gravityDirection * rotationSpeed, rotationSpeed, MovementManager.DirectionType.Rotation);
-        }
-
-        protected void RemoveRotation()
-        {
-            if (!rotatePlayer) return;
-            movementManager.RemoveDirection(gravityDirection * rotationSpeed, rotationSpeed, MovementManager.DirectionType.Rotation);
-        }
-        */
 
 #endif
     }

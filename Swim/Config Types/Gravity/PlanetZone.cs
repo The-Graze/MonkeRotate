@@ -24,19 +24,15 @@ namespace MonkeSwim.Config
 
         public override void Awake()
         {
+            base.Awake();
             rotatingPlayer = rotatePlayer;
             rotatePlayer = false;
             sqrDistance = rotationDistance * rotationDistance;
-            base.Awake();
         }
 
 
         protected override void UpdatedGravity()
         {
-            // need to remove the gravity information from the previous frame before applying new information
-            // RemoveGravity();
-            // RemoveRotation();
-
             // find the new gravity direction
             gravityDirection = FindPlayerOffset();
 
@@ -47,8 +43,6 @@ namespace MonkeSwim.Config
             gravityDirection = Vector3.Normalize(gravityDirection);
 
             base.UpdatedGravity();
-            // AddGravity();
-            // AddRotation();
         }
 
         // override this for different gravity behaviour

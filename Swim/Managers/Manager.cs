@@ -14,6 +14,9 @@ namespace MonkeSwim.Managers
         [Tooltip("wether or not for global gravity to apply")]
         [SerializeField] public bool useGravity = true;
 
+        [Tooltip("wether or not you want players rotation to reset to the world up position after leaving a rotation or gravity zone")]
+        [SerializeField] public bool resetPlayerRotation = false;
+
         [Tooltip("the max speed the player can move at")]
         [SerializeField] public float terminalVelocity = 15f;
 #if GAME
@@ -34,6 +37,7 @@ namespace MonkeSwim.Managers
             Movement = gameObject.AddComponent<MovementManager>();
             Movement.TerminalVelocity = terminalVelocity;
             Movement.UseGravity = useGravity;
+            Movement.ResetPlayerRotation = resetPlayerRotation;
 
             GameObject rightHandObject = new GameObject();
             GameObject leftHandObject = new GameObject();
@@ -78,8 +82,26 @@ namespace MonkeSwim.Managers
         public void MapEnterCallback(bool enter)
         {
             if(enter) {
-                Patch.MonkeSwimPatch.ApplyPatch();
+
+                // if the map rotates the player, apply the rotation patch
+                foreach(Config.GravityZone rotZones in Resources.FindObjectsOfTypeAll<Config.GravityZone>()) {
+
+                    if (rotZones.RotationIntent) {
+                        foreach (Patch.NetworkRotation netRot in GameObject.FindObjectsOfType<Patch.NetworkRotation>()) {
+                            netRot.enabled = true;
+                        }
+
+                        Patch.MonkeSwimPatch.ApplyPatch();
+                        break;
+                    }
+                }
+
                 return;
+            }
+
+            // disable all the network rotation sync classes
+            foreach (Patch.NetworkRotation netRot in GameObject.FindObjectsOfType<Patch.NetworkRotation>()) {
+                netRot.enabled = false;
             }
 
             Patch.MonkeSwimPatch.RemovePatch();

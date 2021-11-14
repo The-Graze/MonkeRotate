@@ -9,28 +9,15 @@ namespace MonkeSwim.Managers
 {
     public class MovementManager : MonoBehaviour
     {
-        /*
-        private AverageDirection rotationDirection;
-        private AverageDirection velocityDirection;
-        private AverageDirection gravityDirection;
-        */
-
         private Rigidbody playerRigidBody = null;
         private GameObject playerTurnParent = null;
 
-        private uint enableGravityAmount = 0;
-        private uint disableGravityAmount = 0;
-
-        /*
-        public enum DirectionType
-        {
-            Rotation,
-            Velocity,
-            Gravity
-        }
-        */
+        private Counter enableGravityAmount = new Counter(0u);
+        private Counter disableGravityAmount = new Counter(0u);
+        private Counter rotatePlayerAmount = new Counter(0u);
 
         public bool UseGravity { get; set; }
+        public bool ResetPlayerRotation { get; set; }
         public float TerminalVelocity { get; set; }
 
         public Vector3 Velocity {
@@ -53,6 +40,9 @@ namespace MonkeSwim.Managers
             get { return Camera.main.transform.forward; }
         }
 
+        public void RegisterRotationIntent() => ++rotatePlayerAmount;
+        public void DeRegisterRotationIntent() => --rotatePlayerAmount;
+
         public void Awake()
         {
             this.enabled = false;
@@ -60,12 +50,6 @@ namespace MonkeSwim.Managers
             playerRigidBody = (Rigidbody)AccessTools.Field(typeof(GorillaLocomotion.Player), "playerRigidBody").GetValue(GorillaLocomotion.Player.Instance);
 
             VmodMonkeMapLoader.Events.OnMapEnter += MapLeftCallback;
-
-            /*
-            rotationDirection = AverageDirection.Zero;
-            velocityDirection = AverageDirection.Zero;
-            gravityDirection = AverageDirection.Zero;
-            */
 
         }
 
@@ -81,76 +65,11 @@ namespace MonkeSwim.Managers
             // Debug.Log("MovementManager: TerimanlVelocity: " + TerminalVelocity);
             ClampToTerminalSpeed();
             // Debug.Log("MovmementManager: Player Velocity: " + playerRigidBody.velocity.magnitude);
-        }
 
-        /*
-        public void Update()
-        {
-            gravity = gravityDirection.Direction * gravityDirection.Speed * Time.deltaTime;
-            velocity = velocityDirection.Direction * velocityDirection.Speed * Time.deltaTime;
-
-            Vector3 rotationDir = rotationDirection.Amount > 0 ? rotationDirection.Direction : Vector3.up;
-
-            if (rotationDir != playerTurnParent.transform.up) {
-                Quaternion newRotation = Quaternion.FromToRotation(playerTurnParent.transform.up, rotationDir) * playerTurnParent.transform.rotation;
-                newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationDirection.Speed * Time.deltaTime);
-
-                playerTurnParent.transform.rotation = newRotation;
+            if(ResetPlayerRotation && !rotatePlayerAmount) {
+                RotatePlayer(Vector3.up, 90f);
             }
         }
-
-        // in LateUpdate() because player.Update() modifies velocity directly potentially overriding our additions
-        public void LateUpdate()
-        {
-            if (playerRigidBody == null || playerTurnParent == null) return;
-
-            playerRigidBody.useGravity = !(gravityDirection.Amount > 0);
-
-            if (gravityDirection.Amount > 0) {
-                Vector3 gravity = gravityDirection.Direction * gravityDirection.Speed * Time.deltaTime;
-                playerRigidBody.AddForce(gravity, ForceMode.VelocityChange);
-
-            }
-
-            if (velocityDirection.Amount > 0) {
-                Vector3 velocity = velocityDirection.Direction * velocityDirection.Speed * Time.deltaTime;
-                playerRigidBody.AddForce(velocity, ForceMode.Impulse);
-
-            }
-        }
-
-        public void AddDirection(Vector3 direction, float strength, DirectionType dirType)
-        {
-            AverageDirection newdDir = new AverageDirection(direction, strength);
-
-            switch (dirType) {
-                case DirectionType.Rotation:
-                    rotationDirection += newdDir; break;
-
-                case DirectionType.Velocity:
-                    velocityDirection += newdDir; break;
-
-                case DirectionType.Gravity:
-                    gravityDirection += newdDir; break;
-            }
-        }
-
-        public void RemoveDirection(Vector3 direction, float strength, DirectionType dirType)
-        {
-            AverageDirection newDir = new AverageDirection(direction, strength);
-
-            switch (dirType) {
-                case DirectionType.Rotation:
-                    rotationDirection -= newDir; break;
-
-                case DirectionType.Velocity:
-                    velocityDirection -= newDir; break;
-
-                case DirectionType.Gravity:
-                    gravityDirection -= newDir; break;
-            }
-        }
-        */
 
         public void RotatePlayer(Vector3 direction, float rotationSpeed)
         {
@@ -234,8 +153,9 @@ namespace MonkeSwim.Managers
                 return;
             }
 
-            enableGravityAmount = 0;
-            disableGravityAmount = 0;
+            enableGravityAmount.value = 0;
+            disableGravityAmount.value = 0;
+            rotatePlayerAmount.value = 0;
 
             playerTurnParent.transform.rotation = Patch.RotationPatch.PlayerLockedRotation;
             playerRigidBody.useGravity = true;

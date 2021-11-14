@@ -20,7 +20,7 @@ namespace MonkeSwim.Config
         {
             if (!collider.gameObject.name.Equals("Body Collider")) return;
 
-            Debug.Log(collider.gameObject.name + " has entered trigger " + gameObject.name);
+            // Debug.Log(collider.gameObject.name + " has entered trigger " + gameObject.name);
 
             swimManager.AddSettings(UseGlobalSettings, (SwimSettings)this);
         }
@@ -29,7 +29,7 @@ namespace MonkeSwim.Config
         {
             if (!collider.gameObject.name.Equals("Body Collider")) return;
 
-            Debug.Log(collider.gameObject.name + " has left trigger " + gameObject.name);
+            // Debug.Log(collider.gameObject.name + " has left trigger " + gameObject.name);
 
             swimManager.RemoveSettings(UseGlobalSettings, (SwimSettings)this);
         }

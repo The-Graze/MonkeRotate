@@ -13,12 +13,16 @@ namespace MonkeSwim.Patch
     [HarmonyPatch]
     internal static class RotationPatch
     {
+        // reflection methods for player update
         private static MethodInfo StoreVelocities;
         private static MethodInfo PositionWithOffset;
         private static MethodInfo CurrentRightHandPosition;
         private static MethodInfo CurrentLeftHandPosition;
         private static MethodInfo IterativeCollisionSphereCast;
         private static MethodInfo AntiTeleportTechnology;
+
+        // reflection methods for VRRig lateupdate
+        private static MethodInfo CheckForEarlyAccess;
 
         public static bool modEnabled = true;
 
@@ -36,6 +40,8 @@ namespace MonkeSwim.Patch
 
         public static void Init()
         {
+            CheckForEarlyAccess = AccessTools.Method(typeof(VRRig), "CheckForEarlyAccess");
+
             StoreVelocities = AccessTools.Method(typeof(GorillaLocomotion.Player), "StoreVelocities");
             // Debug.Log("StoreVelocities == null? " + (StoreVelocities == null));
 
@@ -269,19 +275,9 @@ namespace MonkeSwim.Patch
 
         [HarmonyPatch(typeof(VRRig))]
         [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
-        internal static bool VRRig_TransformOverride(VRRig __instance, float ___ratio)
+        internal static bool VRRig_TransformOverride(VRRig __instance, float ___ratio, ref float ___timeSpawned)
         {
-            // tbh this would've been better as a transpiler, but i don't really understand those yet
-            // and i wanted to do this in a way that is more quest port friendly.
-
-            // what i'm doing here is rotating the camera to be inline with world axis and store the y rotation in in float
-            // apply the new rotation to the gorilla so its y rotation is inline with the camera, but its still in world axis,
-            // so afterwards rotating the gorilla to be inline with the camera axis.
-            // the original position update was already applying the offsets correctly so i just copied that.
-            // rest is just re-implenting all the hand update stuff because we need to skip the original function but those need to run
-            // i can't run this as a postfix and ignore the handupdates because rotating the gorilla will also rotate all the positions and rotations
-            // that the hand updates had set, causing their positions to be out of place
-
+          
             //if mod is off skip this function
             if (!modEnabled) return true;
 
@@ -329,29 +325,67 @@ namespace MonkeSwim.Patch
                     __instance.mainSkin.enabled = !OpenVR.Overlay.IsDashboardVisible();
                 }
 
-                // looks like this stuff is for turning voice chat on or off
-                if (!__instance.isOfflineVRRig) {
-                    if (__instance.photonView == null || __instance.photonView.Owner == null) {
-                        Object.Destroy(__instance.gameObject);
-                    }
+            // networked other player sync / lerp stuff
+            } else {
 
-                    object myObject;
-                    if (__instance.photonView.Owner.CustomProperties.TryGetValue("matIndex", out myObject) && (int)myObject != __instance.setMatIndex) {
-                        __instance.ChangeMaterial((int)myObject);
-                    }
-
-                    bool audioEnabled = !__instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled;
-                    __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled = (GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted);
-
-                    if (audioEnabled && GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted) {
-                        __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.RestartPlayback();
-                    }
+                if (__instance.kickMe && PhotonNetwork.IsMasterClient) {
+                    __instance.kickMe = false;
+                    PhotonNetwork.CloseConnection(__instance.photonView.Owner);
                 }
 
-                // run the base functions else statement if its a networked player, the base else statement
-                // just lerps the positions without being constrained to anny axis, used for connected players
-                // so this shouldn't break anything
-            } else return true;
+                // body lerp
+                if (Time.time > ___timeSpawned + __instance.doNotLerpConstant) {
+                    __instance.transform.position = Vector3.Lerp(__instance.transform.position, __instance.syncPos, __instance.lerpValueBody * 0.66f);
+
+                } else {
+                    __instance.transform.position = __instance.syncPos;
+                }
+
+                __instance.transform.rotation = Quaternion.Lerp(__instance.transform.rotation, __instance.syncRotation, __instance.lerpValueBody);
+
+                // head lerp
+                __instance.head.syncPos = Quaternion.FromToRotation(__instance.transform.up, Vector3.up) * __instance.transform.rotation * -__instance.headBodyOffset;
+                __instance.head.MapOther(__instance.lerpValueBody);
+
+                // right hand lerp
+                __instance.rightHand.MapOther(__instance.lerpValueBody);
+                __instance.rightIndex.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[5]) / 10f, __instance.lerpValueFingers);
+                __instance.rightMiddle.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[4]) / 10f, __instance.lerpValueFingers);
+                __instance.rightThumb.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[3]) / 10f, __instance.lerpValueFingers);
+
+                // left hand lerp
+                __instance.leftHand.MapOther(__instance.lerpValueBody);
+                __instance.leftIndex.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[2]) / 10f, __instance.lerpValueFingers);
+                __instance.leftMiddle.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[1]) / 10f, __instance.lerpValueFingers);
+                __instance.leftThumb.MapOtherFinger((float)char.GetNumericValue(__instance.handSync.ToString().PadLeft(6)[0]) / 10f, __instance.lerpValueFingers);
+
+                // initialize cosmetics
+                if (!__instance.initializedCosmetics && GorillaTagManager.instance != null && GorillaTagManager.instance.playerCosmeticsLookup.TryGetValue(__instance.photonView.Owner.UserId, out __instance.tempString)) {
+                    __instance.initializedCosmetics = true;
+                    __instance.concatStringOfCosmeticsAllowed = __instance.tempString;
+                    CheckForEarlyAccess.Invoke(__instance, null);
+                    __instance.SetCosmeticsActive();
+                }
+            }
+
+            // looks like this stuff is for turning voice chat on or off
+            if (!__instance.isOfflineVRRig) {
+                if (__instance.photonView == null || __instance.photonView.Owner == null) {
+                    Object.Destroy(__instance.gameObject);
+                }
+
+                object myObject;
+                if (__instance.photonView.Owner.CustomProperties.TryGetValue("matIndex", out myObject) && (int)myObject != __instance.setMatIndex) {
+                    __instance.ChangeMaterial((int)myObject);
+                }
+
+                bool audioEnabled = !__instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled;
+                __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled = (GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted);
+
+                if (audioEnabled && GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted) {
+                    __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.RestartPlayback();
+                }
+            }
 
             //skips the original function
             return false;
@@ -361,12 +395,6 @@ namespace MonkeSwim.Patch
         [HarmonyPrefix, HarmonyPatch("MapMine", MethodType.Normal)]
         internal static bool MapMine(VRMap __instance, ref float ratio, ref Transform playerOffsetTransform)
         {
-            // all i've really done here is replace Vector3.up with playerOffsetTrasnform.up
-            // and use the players up rotation to localise the device rotation and position
-            // xr device information is always based on your play space and not scene or world information
-            // so if you were standing perfectly upright looking straight forward, your headset up would be 
-            // equivilent to Vector3.up
-
             // Quaternion targetRotation = xrDeviceRotation * Quaternion.Euler(__instance.trackingRotationOffset);
             // targetRotation = playerUpRotation * targetRotation;
             // __instance.rigTarget.rotation = targetRotation;
