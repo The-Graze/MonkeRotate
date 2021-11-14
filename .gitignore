@@ -364,3 +364,6 @@ FodyWeavers.xsd
 
 # ignore libs folder
 [Ll]ibs/
+
+*.gtmap
+*.zip
