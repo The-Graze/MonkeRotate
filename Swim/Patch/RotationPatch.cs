@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using GorillaNetworking;
+using HarmonyLib;
 using System.Reflection;
 
 using Photon.Pun;
@@ -275,7 +276,7 @@ namespace MonkeSwim.Patch
 
         [HarmonyPatch(typeof(VRRig))]
         [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
-        internal static bool VRRig_TransformOverride(VRRig __instance, float ___ratio, ref float ___timeSpawned)
+        internal static bool VRRig_TransformOverride(VRRig __instance, float ___ratio, ref float ___timeSpawned, ref int ___tempMatIndex)
         {
           
             //if mod is off skip this function
@@ -374,9 +375,10 @@ namespace MonkeSwim.Patch
                     Object.Destroy(__instance.gameObject);
                 }
 
-                object myObject;
-                if (__instance.photonView.Owner.CustomProperties.TryGetValue("matIndex", out myObject) && (int)myObject != __instance.setMatIndex) {
-                    __instance.ChangeMaterial((int)myObject);
+                ___tempMatIndex = GorillaGameManager.instance.MyMatIndex(__instance.photonView.Owner);
+                if(__instance.setMatIndex != ___tempMatIndex) {
+                    __instance.setMatIndex = ___tempMatIndex;
+                    __instance.ChangeMaterialLocal(__instance.setMatIndex);
                 }
 
                 bool audioEnabled = !__instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled;
