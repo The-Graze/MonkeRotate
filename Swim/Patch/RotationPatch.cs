@@ -276,14 +276,28 @@ namespace MonkeSwim.Patch
 
         [HarmonyPatch(typeof(VRRig))]
         [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
-        internal static bool VRRig_TransformOverride(VRRig __instance, float ___ratio, ref float ___timeSpawned, ref int ___tempMatIndex)
+        internal static bool VRRig_TransformOverride(VRRig __instance, ref float ___ratio, 
+                                                                       ref float ___timeSpawned, 
+                                                                       ref int ___tempMatIndex, 
+                                                                       ref bool ___hasInstantiatedManager,
+                                                                       ref Photon.Realtime.Player ___tempPlayer)
         {
           
             //if mod is off skip this function
             if (!modEnabled) return true;
 
-            if (__instance.isOfflineVRRig || __instance.photonView.IsMine) {
+            if (__instance.isOfflineVRRig && (__instance.photonView == null || __instance.photonView.Owner == null || (__instance.photonView.Owner != null && PhotonNetwork.CurrentRoom.Players.TryGetValue(__instance.photonView.Owner.ActorNumber, out ___tempPlayer) && ___tempPlayer == null))) {
+                
+                GorillaParent.instance.vrrigs.Remove(__instance);
 
+                if(__instance.photonView != null) {
+                    GorillaParent.instance.vrrigDict.Remove(__instance.photonView.Owner);
+                }
+
+                Object.Destroy(__instance);
+            }
+
+            if (__instance.isOfflineVRRig || __instance.photonView.IsMine) { 
                 Transform gorilla = __instance.transform;
                 Transform camera = __instance.mainCamera.transform;
 
@@ -371,8 +385,10 @@ namespace MonkeSwim.Patch
 
             // looks like this stuff is for turning voice chat on or off
             if (!__instance.isOfflineVRRig) {
-                if (__instance.photonView == null || __instance.photonView.Owner == null) {
-                    Object.Destroy(__instance.gameObject);
+                
+                if (PhotonNetwork.IsMasterClient &&GorillaGameManager.instance == null && !___hasInstantiatedManager) {
+                    ___hasInstantiatedManager = true;
+                    PhotonNetwork.InstantiateRoomObject("GorillaPrefabs/GorillaTagManager", Vector3.zero, Quaternion.identity, 0);
                 }
 
                 ___tempMatIndex = GorillaGameManager.instance.MyMatIndex(__instance.photonView.Owner);
@@ -381,12 +397,7 @@ namespace MonkeSwim.Patch
                     __instance.ChangeMaterialLocal(__instance.setMatIndex);
                 }
 
-                bool audioEnabled = !__instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled;
-                __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.gameObject.GetComponent<AudioSource>().enabled = (GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted);
-
-                if (audioEnabled && GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted) {
-                    __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.RestartPlayback();
-                }
+                __instance.GetComponent<PhotonVoiceView>().SpeakerInUse.enabled = GorillaComputer.instance.voiceChatOn == "TRUE" && !__instance.muted;
             }
 
             //skips the original function
