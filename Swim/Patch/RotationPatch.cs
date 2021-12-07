@@ -164,26 +164,49 @@ namespace MonkeSwim.Patch
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
 
+            bool raycastResult = false;
+
             if (itCollideResult) {
                 ___rigidBodyMovement = ___finalPosition - __instance.lastHeadPosition;
 
-                bool raycastResult = Physics.Raycast( __instance.lastHeadPosition,
-                                                      __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
-                                                      out hitInfo,
-                                                      (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
-                                                      __instance.locomotionEnabledLayers.value);
+                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
+                                                 __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
+                                                 out hitInfo,
+                                                (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
+                                                 __instance.locomotionEnabledLayers.value);
 
                 ___hitInfo = hitInfo;
 
                 if (raycastResult) {
                     ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
                 }
+
+            } else if (___rigidBodyMovement != Vector3.zero) {
+                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
+                                                __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
+                                                out hitInfo,
+                                               (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
+                                               __instance.locomotionEnabledLayers.value);
+                ___hitInfo = hitInfo;
+
+                if (raycastResult) {
+                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
+                }
+
+            } else if (Physics.Raycast(__instance.lastHeadPosition, 
+                                       __instance.headCollider.transform.position - __instance.lastHeadPosition,
+                                       out hitInfo,
+                                      (__instance.headCollider.transform.position - __instance.lastHeadPosition).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
+                                      __instance.locomotionEnabledLayers.value)) {
+                ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
             }
 
+            ___hitInfo = hitInfo;
 
             if (___rigidBodyMovement != Vector3.zero) {
                 __instance.transform.position = __instance.transform.position + ___rigidBodyMovement;
             }
+
 
             __instance.lastHeadPosition = __instance.headCollider.transform.position;
 
@@ -279,7 +302,6 @@ namespace MonkeSwim.Patch
         internal static bool VRRig_TransformOverride(VRRig __instance, ref float ___ratio, 
                                                                        ref float ___timeSpawned, 
                                                                        ref int ___tempMatIndex, 
-                                                                       ref bool ___hasInstantiatedManager,
                                                                        ref Photon.Realtime.Player ___tempPlayer)
         {
           
@@ -386,8 +408,7 @@ namespace MonkeSwim.Patch
             // looks like this stuff is for turning voice chat on or off
             if (!__instance.isOfflineVRRig) {
                 
-                if (PhotonNetwork.IsMasterClient &&GorillaGameManager.instance == null && !___hasInstantiatedManager) {
-                    ___hasInstantiatedManager = true;
+                if (PhotonNetwork.IsMasterClient && GorillaGameManager.instance == null) {
                     PhotonNetwork.InstantiateRoomObject("GorillaPrefabs/GorillaTagManager", Vector3.zero, Quaternion.identity, 0);
                 }
 
