@@ -1,5 +1,4 @@
-﻿using GorillaNetworking;
-using HarmonyLib;
+﻿using HarmonyLib;
 using System.Reflection;
 
 using Photon.Pun;
@@ -8,6 +7,9 @@ using Photon.Voice.PUN;
 using UnityEngine;
 using UnityEngine.XR;
 using Valve.VR;
+
+using GorillaLocomotion;
+using GorillaNetworking;
 
 namespace MonkeSwim.Patch
 {
@@ -64,6 +66,7 @@ namespace MonkeSwim.Patch
             // Debug.Log("IterativeCollisionSphereCast == null? " + (IterativeCollisionSphereCast == null));
         }
 
+        #region PLAYERUPDATE
         [HarmonyPatch(typeof(GorillaLocomotion.Player))]
         [HarmonyPrefix, HarmonyPatch("Update", MethodType.Normal)]
         internal static bool Prefix_PlayerUpdate(GorillaLocomotion.Player __instance, ref bool ___leftHandColliding, 
@@ -264,11 +267,11 @@ namespace MonkeSwim.Patch
             }
 
             if (___leftHandColliding && (leftHandPosition - ___lastLeftHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
-                                                                                                                       __instance.minimumRaycastDistance * __instance.defaultPrecision,
-                                                                                                                       leftHandPosition - __instance.headCollider.transform.position,
-                                                                                                                       out hitInfo,
-                                                                                                                       (leftHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                       __instance.locomotionEnabledLayers.value))
+                                                                                                                                                   __instance.minimumRaycastDistance * __instance.defaultPrecision,
+                                                                                                                                                   leftHandPosition - __instance.headCollider.transform.position,
+                                                                                                                                                   out hitInfo,
+                                                                                                                                                   (leftHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
+                                                                                                                                                   __instance.locomotionEnabledLayers.value))
             {
                 ___lastLeftHandPosition = leftHandPosition;
                 ___leftHandColliding = false;
@@ -277,11 +280,11 @@ namespace MonkeSwim.Patch
             ___hitInfo = hitInfo;
 
             if (___rightHandColliding && (rightHandPosition - ___lastRightHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
-                                                                                                                         __instance.minimumRaycastDistance * __instance.defaultPrecision,
-                                                                                                                         rightHandPosition - __instance.headCollider.transform.position,
-                                                                                                                         out hitInfo,
-                                                                                                                         (rightHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                         __instance.locomotionEnabledLayers.value)) 
+                                                                                                                                                      __instance.minimumRaycastDistance * __instance.defaultPrecision,
+                                                                                                                                                      rightHandPosition - __instance.headCollider.transform.position,
+                                                                                                                                                      out hitInfo,
+                                                                                                                                                      (rightHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
+                                                                                                                                                      __instance.locomotionEnabledLayers.value)) 
 {
                 ___lastRightHandPosition = rightHandPosition;
                 ___rightHandColliding = false;
@@ -297,10 +300,14 @@ namespace MonkeSwim.Patch
             return false;
         }
 
+        #endregion
+
+        #region VRRIGUPDATE
         [HarmonyPatch(typeof(VRRig))]
         [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
         internal static bool VRRig_TransformOverride(VRRig __instance, ref float ___ratio, 
-                                                                       ref float ___timeSpawned, 
+                                                                       ref float ___timeSpawned,
+                                                                       ref float[] ___speedArray,
                                                                        ref int ___tempMatIndex, 
                                                                        ref Photon.Realtime.Player ___tempPlayer)
         {
@@ -308,7 +315,7 @@ namespace MonkeSwim.Patch
             //if mod is off skip this function
             if (!modEnabled) return true;
 
-            if (__instance.isOfflineVRRig && (__instance.photonView == null || __instance.photonView.Owner == null || (__instance.photonView.Owner != null && PhotonNetwork.CurrentRoom.Players.TryGetValue(__instance.photonView.Owner.ActorNumber, out ___tempPlayer) && ___tempPlayer == null))) {
+            if (!__instance.isOfflineVRRig && (__instance.photonView == null || __instance.photonView.Owner == null || (__instance.photonView.Owner != null && PhotonNetwork.CurrentRoom.Players.TryGetValue(__instance.photonView.Owner.ActorNumber, out ___tempPlayer) && ___tempPlayer == null))) {
                 
                 GorillaParent.instance.vrrigs.Remove(__instance);
 
@@ -317,6 +324,17 @@ namespace MonkeSwim.Patch
                 }
 
                 Object.Destroy(__instance);
+            }
+
+            if (GorillaGameManager.instance != null)
+            {
+                ___speedArray = GorillaGameManager.instance.LocalPlayerSpeed();
+                Player.Instance.jumpMultiplier = ___speedArray[1];
+                Player.Instance.maxJumpSpeed = ___speedArray[0];
+            
+            } else {
+                Player.Instance.jumpMultiplier = 1.1f;
+                Player.Instance.maxJumpSpeed = 6.5f;
             }
 
             if (__instance.isOfflineVRRig || __instance.photonView.IsMine) { 
@@ -412,7 +430,7 @@ namespace MonkeSwim.Patch
                     PhotonNetwork.InstantiateRoomObject("GorillaPrefabs/GorillaTagManager", Vector3.zero, Quaternion.identity, 0);
                 }
 
-                ___tempMatIndex = GorillaGameManager.instance.MyMatIndex(__instance.photonView.Owner);
+                ___tempMatIndex =  (GorillaGameManager.instance != null ? GorillaGameManager.instance.MyMatIndex(__instance.photonView.Owner) : 0);
                 if(__instance.setMatIndex != ___tempMatIndex) {
                     __instance.setMatIndex = ___tempMatIndex;
                     __instance.ChangeMaterialLocal(__instance.setMatIndex);
@@ -424,7 +442,9 @@ namespace MonkeSwim.Patch
             //skips the original function
             return false;
         }
+        #endregion
 
+        #region RIGMAPPING
         [HarmonyPatch(typeof(VRMap))]
         [HarmonyPrefix, HarmonyPatch("MapMine", MethodType.Normal)]
         internal static bool MapMine(VRMap __instance, ref float ratio, ref Transform playerOffsetTransform)
@@ -462,6 +482,7 @@ namespace MonkeSwim.Patch
 
             return false;
         }
+        #endregion
 
         // turn is used to rotate the player with stick inputs, its also axis locked to Vector3.up
         [HarmonyPatch(typeof(GorillaLocomotion.Player))]
