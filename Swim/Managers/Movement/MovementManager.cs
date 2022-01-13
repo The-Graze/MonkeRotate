@@ -73,9 +73,21 @@ namespace MonkeSwim.Managers
         {
             float deltaTime = fixedDelta ? Time.fixedDeltaTime : Time.deltaTime;
 
+            // actual player position is offset from the turn parent
+            // calculate the offset in local space of the player body without scale
+            Vector3 parentOffset = Quaternion.Inverse(playerTurnParent.transform.rotation) * (playerTurnParent.transform.position - playerBody.transform.position);
+
+            // calculate the new rotation
             Quaternion newRotation = Quaternion.FromToRotation(playerTurnParent.transform.up, direction) * playerTurnParent.transform.rotation;
             newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * deltaTime);
 
+            // apply the rotation to the offset
+            parentOffset = newRotation * parentOffset;
+
+            // move the turn parents position to where its new offset is after rotating
+            playerTurnParent.transform.position = playerBody.transform.position + parentOffset;
+
+            // apply the new rotation
             playerTurnParent.transform.rotation = newRotation;
         }
 
