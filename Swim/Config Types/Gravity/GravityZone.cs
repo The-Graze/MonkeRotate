@@ -41,6 +41,7 @@ namespace MonkeSwim.Config
         {
             gravityDirection = gameObject.transform.up;
             rotationIntent = rotatePlayer;
+            gravityStrength *= 0.01f;
 
             /*
             Debug.Log("GravityZone: Awake");
@@ -111,7 +112,7 @@ namespace MonkeSwim.Config
             }
 
             if (rotatePlayer) {
-                movementManager.RotatePlayer(gravityDirection, rotationSpeed);
+                movementManager.RotatePlayer(gravityDirection, rotationSpeed, fixedDelta: true);
             }
         }
 

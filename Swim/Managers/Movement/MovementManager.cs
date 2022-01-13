@@ -11,6 +11,7 @@ namespace MonkeSwim.Managers
     {
         private Rigidbody playerRigidBody = null;
         private GameObject playerTurnParent = null;
+        private GameObject playerBody = null;
 
         private Counter enableGravityAmount = new Counter(0u);
         private Counter disableGravityAmount = new Counter(0u);
@@ -44,6 +45,7 @@ namespace MonkeSwim.Managers
         {
             this.enabled = false;
             playerTurnParent = GorillaLocomotion.Player.Instance.turnParent;
+            playerBody = GorillaLocomotion.Player.Instance.bodyCollider.gameObject;
             playerRigidBody = (Rigidbody)AccessTools.Field(typeof(GorillaLocomotion.Player), "playerRigidBody").GetValue(GorillaLocomotion.Player.Instance);
 
             VmodMonkeMapLoader.Events.OnMapEnter += MapLeftCallback;
@@ -63,14 +65,16 @@ namespace MonkeSwim.Managers
             // Debug.Log("MovmementManager: Player Velocity: " + playerRigidBody.velocity.magnitude);
 
             if(ResetPlayerRotation && !rotatePlayerAmount) {
-                RotatePlayer(Vector3.up, 90f);
+                RotatePlayer(Vector3.up, 90f, fixedDelta: false);
             }
         }
 
-        public void RotatePlayer(Vector3 direction, float rotationSpeed)
+        public void RotatePlayer(Vector3 direction, float rotationSpeed, bool fixedDelta)
         {
+            float deltaTime = fixedDelta ? Time.fixedDeltaTime : Time.deltaTime;
+
             Quaternion newRotation = Quaternion.FromToRotation(playerTurnParent.transform.up, direction) * playerTurnParent.transform.rotation;
-            newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * Time.deltaTime);
+            newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * deltaTime);
 
             playerTurnParent.transform.rotation = newRotation;
         }
@@ -87,7 +91,7 @@ namespace MonkeSwim.Managers
 
         public void AddPlayerVelocity(Vector3 direction, float speed, float max)
         {
-            speed *= 0.01f;
+            // speed *= 0.01f;
 
             Vector3 velocity = playerRigidBody.velocity;
             Vector3 newVelocity = direction * speed;

@@ -48,6 +48,7 @@ namespace MonkeSwim.Tools.Trackers
                 if (inputState.wasPressed) {
                     // Debug.Log("SwimHandTracker: TriggerWasPressed");
                     speed = rawDirection.magnitude;
+                    speed = speed > 0f ? speed / Time.deltaTime : 0f;
                     smoothedDirection += new Averages.AverageDirection(rawDirection, 0f);
                     direction = rawDirection.normalized;
 
@@ -56,6 +57,7 @@ namespace MonkeSwim.Tools.Trackers
                 } else if (inputState.isActive) {
                     // Debug.Log("SwimHandTracker: TriggerIsHeld");
                     speed = rawDirection.magnitude;
+                    speed = speed > 0f ? speed / Time.deltaTime : 0f;
                     smoothedDirection += new Averages.AverageDirection(rawDirection * 0.5f, 0f);
                     direction = smoothedDirection.Vector.normalized;
 

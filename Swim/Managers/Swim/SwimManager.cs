@@ -23,10 +23,11 @@ namespace MonkeSwim.Managers
 
         private SwimSettingsAverage settings;
 
+        private int physicSteps = 0;
 
         public static SwimManager Instance { get; private set; }
 
-        public void Awake()
+        private void Awake()
         {
             if (Instance != null) {
                 GameObject.Destroy(this);
@@ -40,7 +41,7 @@ namespace MonkeSwim.Managers
             Debug.Log("SwimManager: lets go swimming XD");
         }
 
-        public void Start()
+        private void Start()
         {
             rightHand = GorillaLocomotion.Player.Instance.rightHandFollower.gameObject.AddComponent<SwimHandTracker>();
             rightHand.Controller = MonkeSwimManager.Instance.RightController;
@@ -59,13 +60,18 @@ namespace MonkeSwim.Managers
             this.enabled = false;
         }
 
-        public void OnDestroy()
+        private void OnDestroy()
         {
             if (Instance == this) Instance = null;
             VmodMonkeMapLoader.Events.OnMapEnter -= MapEnterCallback;
         }
 
-        public void LateUpdate()
+        private void FixedUpdate()
+        {
+            ++physicSteps;   
+        }
+
+        private void LateUpdate()
         {
 
             // add resistence first so swim velocities have priority
@@ -74,13 +80,14 @@ namespace MonkeSwim.Managers
 
             movementManager.AddPlayerResistence(settings.Resistence);
 
-            float rightHandSpeed = rightHand.speed;
-            float leftHandSpeed = leftHand.speed;
+            float rightHandSpeed = settings.Acceleration * (rightHand.speed * 0.01f) * physicSteps;
+            float leftHandSpeed = settings.Acceleration * (leftHand.speed * 0.01f) * physicSteps;
+            
+            physicSteps = 0;
 
             // Debug.Log("SwimManager: right hand speed: " + rightHandSpeed);
             // Debug.Log("SwimManager: left hand speed: " + leftHandSpeed);
             // Debug.Log(string.Format("SwimmManager: SwimSettings :\n MaxSpeed: {0} \nAcelleration: {1} \nResistence: {2}", settings.MaxSpeed, settings.Acceleration, settings.Resistence));
-
 
             float precision = 0.001f;
 
@@ -89,18 +96,16 @@ namespace MonkeSwim.Managers
             bool leftHandMoving = leftHandSpeed > precision;
 
             // moving the decimal place up 2
-            rightHandSpeed *= 100f;
-            leftHandSpeed *= 100f;
+            // rightHandSpeed *= 100f;
+            // leftHandSpeed *= 100f;
 
             Vector3 lookDirectionAssist = movementManager.LookDirection * 0.2f;
+         
+            if (rightHandMoving)
+                movementManager.AddPlayerVelocity((rightHand.Direction + lookDirectionAssist).normalized, rightHandSpeed, settings.MaxSpeed);
 
-            if (rightHandMoving) {
-                movementManager.AddPlayerVelocity((rightHand.Direction + lookDirectionAssist).normalized, settings.Acceleration * rightHandSpeed, settings.MaxSpeed);
-            }
-
-            if (leftHandMoving) {
-                movementManager.AddPlayerVelocity((leftHand.Direction + lookDirectionAssist).normalized, settings.Acceleration * leftHandSpeed, settings.MaxSpeed);
-            }
+            if (leftHandMoving) 
+                movementManager.AddPlayerVelocity((leftHand.Direction + lookDirectionAssist).normalized, leftHandSpeed, settings.MaxSpeed);    
         }
 
         public void AddSettings(bool useGlobalSettings, SwimSettings newSettings)
@@ -157,7 +162,7 @@ namespace MonkeSwim.Managers
         }
 
 
-        public void MapEnterCallback(bool enter)
+        private void MapEnterCallback(bool enter)
         {
             if (enter) {
                 if (Global) {
