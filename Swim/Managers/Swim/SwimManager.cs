@@ -108,7 +108,7 @@ namespace MonkeSwim.Managers
                 movementManager.AddPlayerVelocity((leftHand.Direction + lookDirectionAssist).normalized, leftHandSpeed, settings.MaxSpeed);    
         }
 
-        private void AddSettings(bool useGlobalSettings, SwimSettings newSettings)
+        public void AddSettings(bool useGlobalSettings, SwimSettings newSettings)
         {
             if(settings.Amount == 0) {
                 if (useGlobalSettings) {
