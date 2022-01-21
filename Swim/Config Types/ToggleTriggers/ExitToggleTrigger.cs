@@ -2,13 +2,13 @@
 
 namespace MonkeSwim.Config
 {
-    public abstract class EnterToggleTrigger : ToggleBase
+    public abstract class ExitToggleTrigger : ToggleBase
     {
 #if GAME
         // private bool hasToggled = false;
         // public bool CanToggle { get; set; } = true;
 
-        protected override void PlayerEnter()
+        protected override void PlayerExit()
         {
             base.PlayerExit();
 
