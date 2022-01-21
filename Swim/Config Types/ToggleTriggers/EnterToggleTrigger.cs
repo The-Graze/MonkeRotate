@@ -2,7 +2,7 @@
 
 namespace MonkeSwim.Config
 {
-    public abstract class EnterToggleTrigger : ToggleBase
+    public class EnterToggleTrigger : ToggleBase
     {
 #if GAME
         // private bool hasToggled = false;

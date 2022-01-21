@@ -2,7 +2,7 @@
 
 namespace MonkeSwim.Config
 {
-    public abstract class ToggleBase : PlayerTrigger
+    public class ToggleBase : PlayerTrigger
     {
         public GameObject target;
 
