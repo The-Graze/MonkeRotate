@@ -34,8 +34,8 @@ namespace MonkeSwim.Config
 
         protected override Vector3 FindPlayerOffset()
         {
-            Vector3 playerPos = inverseRotation * (playerCollided.transform.position - gameObject.transform.position);
-            return playerCollided.transform.position - (gameObject.transform.rotation * playerPos.Clamp(minConstraints, maxConstraints) + gameObject.transform.position);
+            Vector3 playerPos = inverseRotation * (playerCollider.transform.position - gameObject.transform.position);
+            return playerCollider.transform.position - (gameObject.transform.rotation * playerPos.Clamp(minConstraints, maxConstraints) + gameObject.transform.position);
 
             // return playerCollided.transform.position - gravPoint;
         }
