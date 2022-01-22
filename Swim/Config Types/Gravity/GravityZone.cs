@@ -6,7 +6,7 @@ using MonkeSwim.Managers;
 
 namespace MonkeSwim.Config
 {
-    public class GravityZone : MonoBehaviour
+    public class GravityZone : PlayerTrigger
     {
         [Header("Gravity Settings")]
         [Tooltip("negative number pulls, positive number expels")]
@@ -34,7 +34,7 @@ namespace MonkeSwim.Config
 
 #if GAME
         protected Vector3 gravityDirection;
-        protected Collider playerCollided = null;
+        // protected Collider playerCollided = null;
         static protected MovementManager movementManager = null;
 
         public virtual void Awake()
@@ -63,11 +63,8 @@ namespace MonkeSwim.Config
             movementManager = MonkeSwimManager.Instance.Movement;
         }
 
-        public void OnTriggerEnter(Collider collider)
+        protected override void PlayerEnter()
         {
-            if (playerCollided == null && collider.name.Equals("Body Collider")) playerCollided = collider;
-            else return;
-
             if (UseWorldGravity) {
                 movementManager.EnableGravity(true);
 
@@ -80,10 +77,9 @@ namespace MonkeSwim.Config
             UpdatedGravity();
         }
 
-        public void OnTriggerExit(Collider collider)
+        protected override void PlayerExit()
         {
-            if (playerCollided != collider) return;
-
+            base.PlayerExit();
 
             if (UseWorldGravity) {
                 movementManager.EnableGravity(false);
@@ -93,13 +89,11 @@ namespace MonkeSwim.Config
             }
 
             if(rotationIntent) movementManager.RegisterRotationIntent(false);
-            ResetSettings();
-
         }
 
-        public void OnTriggerStay(Collider collider)
+        private void OnTriggerStay(Collider collider)
         {
-            if (playerCollided != collider) return;
+            if ( !playerCollided && playerCollider != collider) return;
             // Debug.Log("GravityZone: OnTriggerStay");
             UpdatedGravity();
         }
@@ -114,11 +108,6 @@ namespace MonkeSwim.Config
             if (rotatePlayer) {
                 movementManager.RotatePlayer(gravityDirection, rotationSpeed, fixedDelta: true);
             }
-        }
-
-        protected virtual void ResetSettings()
-        {
-            playerCollided = null;
         }
 
 #endif
