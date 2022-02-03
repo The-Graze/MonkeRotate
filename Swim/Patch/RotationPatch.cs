@@ -60,9 +60,17 @@ namespace MonkeSwim.Patch
             PositionWithOffset = AccessTools.Method(typeof(GorillaLocomotion.Player), "PositionWithOffset", new System.Type[]{typeof(Transform), typeof(Vector3) });
             // Debug.Log("PositionWithOffset == null? " + (PositionWithOffset == null));
 
-            IterativeCollisionSphereCast = AccessTools.Method(typeof(GorillaLocomotion.Player), "IterativeCollisionSphereCast", new System.Type[] { typeof(Vector3), typeof(float), typeof(Vector3),
-                                                                                                                                                                     typeof(float), typeof(Vector3).MakeByRefType(),
-                                                                                                                                                                     typeof(bool), typeof(float).MakeByRefType() });
+            IterativeCollisionSphereCast = AccessTools.Method(typeof(GorillaLocomotion.Player), "IterativeCollisionSphereCast", new System.Type[] { 
+                                                                                                                                                    typeof(Vector3), 
+                                                                                                                                                    typeof(float), 
+                                                                                                                                                    typeof(Vector3),                                                                                                                                             
+                                                                                                                                                    typeof(float), 
+                                                                                                                                                    typeof(Vector3).MakeByRefType(),
+                                                                                                                                                    typeof(bool), 
+                                                                                                                                                    typeof(float).MakeByRefType(),
+                                                                                                                                                    typeof(Vector3).MakeByRefType(),
+                                                                                                                                                    typeof(RaycastHit).MakeByRefType()
+                                                                                                                                                   } );
             // Debug.Log("IterativeCollisionSphereCast == null? " + (IterativeCollisionSphereCast == null));
         }
 
@@ -72,6 +80,9 @@ namespace MonkeSwim.Patch
         internal static bool Prefix_PlayerUpdate(GorillaLocomotion.Player __instance, ref bool ___leftHandColliding, 
                                                                                       ref bool ___rightHandColliding,
                                                                                       ref float ___slipPercentage,
+                                                                                      ref float ___tempRealTime,
+                                                                                      ref float ___calcDeltaTime,
+                                                                                      ref float ___lastRealTime,
                                                                                       ref Vector3 ___rigidBodyMovement, 
                                                                                       ref Vector3 ___firstIterationLeftHand,
                                                                                       ref Vector3 ___firstIterationRightHand,
@@ -81,8 +92,17 @@ namespace MonkeSwim.Patch
                                                                                       ref Vector3 ___finalPosition,
                                                                                       ref Vector3 ___denormalizedVelocityAverage,
                                                                                       ref Vector3 ___bodyOffsetVector,
+                                                                                      ref Vector3 ___slideAverage,
+                                                                                      ref Vector3 ___slideAverageNormal,
+                                                                                      ref Vector3 ___junkNormal,
+                                                                                      ref Vector3 ___rightHandSurfaceDirection,
+                                                                                      ref Vector3 ___leftHandSurfaceDirection,
                                                                                       ref Rigidbody ___playerRigidBody,
-                                                                                      ref RaycastHit ___hitInfo)
+                                                                                      ref RaycastHit ___hitInfo,
+                                                                                      ref RaycastHit ___tempHitInfo,
+                                                                                      ref RaycastHit ___hitInfoLeft,
+                                                                                      ref RaycastHit ___hitInfoRight,
+                                                                                      ref RaycastHit ___junkHit)
         {
             if (!modEnabled) return true;
 
@@ -90,30 +110,64 @@ namespace MonkeSwim.Patch
 
             ___leftHandColliding = false;
             ___rightHandColliding = false;
+            __instance.rightHandSlide = false;
+            __instance.leftHandSlide = false;
+
             ___rigidBodyMovement = Vector3.zero;
             ___firstIterationLeftHand = Vector3.zero;
             ___firstIterationRightHand = Vector3.zero;
 
+            __instance.rightHandSlideNormal = __instance.turnParent.transform.up;
+            __instance.leftHandSlideNormal = __instance.turnParent.transform.up;
+
             __instance.bodyCollider.transform.position = (Vector3)PositionWithOffset.Invoke(__instance, new object[] { __instance.headCollider.transform, __instance.bodyOffset }) + (__instance.turnParent.transform.rotation * ___bodyOffsetVector);
             __instance.bodyCollider.transform.rotation = bodyRotation;
 
+            Vector3 downDir = __instance.turnParent.transform.up * -1f;
+
+			if (__instance.debugMovement) {
+                ___tempRealTime = Time.time;
+                ___calcDeltaTime = Time.deltaTime;
+                ___lastRealTime = ___tempRealTime;
+
+			} else {
+                ___tempRealTime = Time.realtimeSinceStartup;
+                ___calcDeltaTime = ___tempRealTime = ___lastRealTime;
+                ___lastRealTime = ___tempRealTime;
+
+                if(___calcDeltaTime > 0.1f)
+                    ___calcDeltaTime = 0.05f;
+			}
+
             AntiTeleportTechnology.Invoke(__instance, null);
 
-            Vector3 downDir = __instance.turnParent.transform.up * -1f;
+            if (__instance.wasLeftHandSlide || __instance.wasRightHandSlide) {
+                __instance.transform.position = __instance.transform.position + ___slideAverage * ___calcDeltaTime;
+                ___playerRigidBody.velocity = ___slideAverage + downDir * 9.8f * ___calcDeltaTime;
+			}
+
             Vector3 leftHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
             Vector3 rightHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
 
+            ___slideAverage = Vector3.zero;
+
             // calculate left hand movement
-            ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition + downDir * 2f * 9.8f * Time.deltaTime * Time.deltaTime;
+            if (__instance.wasLeftHandSlide) {
+                ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition + ___slideAverageNormal.normalized * (0f - __instance.slideStickDistance) * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+
+            } else {
+                ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition + downDir * 2f * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+            }
 
             // left hand collision check
-            object[] itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null };
+            object[] itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null, null, null };
             bool itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
+            __instance.leftHandSlideNormal = (Vector3)itCollideParems[7];
+            ___tempHitInfo = (RaycastHit)itCollideParems[8];
 
             if (itCollideResult) {
-                
                 if (__instance.wasLeftHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
                     ___firstIterationLeftHand = ___lastLeftHandPosition - leftHandPosition;
 
@@ -121,24 +175,39 @@ namespace MonkeSwim.Patch
                     ___firstIterationLeftHand = ___finalPosition - leftHandPosition;
                 }
 
-                ___playerRigidBody.velocity = Vector3.zero;
+                __instance.leftHandSlipPercentage = ___slipPercentage;
+                __instance.leftHandSlide = ___slipPercentage > __instance.defaultSlideFactor;
+
+                if (__instance.leftHandSlide && Physics.Raycast(___finalPosition, ___tempHitInfo.point - ___finalPosition, out ___hitInfoLeft, (___tempHitInfo.point - ___finalPosition).magnitude * 1.05f, __instance.locomotionEnabledLayers.value)) {
+                    __instance.leftHandSlideNormal = ___hitInfoLeft.normal;
+
+				} else {
+                    __instance.leftHandSlide = false;
+				}
+
                 ___leftHandColliding = true;
                 __instance.leftHandMaterialTouchIndex = __instance.currentMaterialIndex;
                 __instance.leftHandSurfaceOverride = __instance.currentOverride;
+            
             }
 
-
             // calculate right hand movement
-            ___distanceTraveled = rightHandPosition - ___lastRightHandPosition + downDir * 2f * 9.8f * Time.deltaTime * Time.deltaTime;
+            if (__instance.wasRightHandSlide) {
+                ___distanceTraveled = rightHandPosition - ___lastRightHandPosition + ___slideAverageNormal.normalized * (0f - __instance.slideStickDistance) * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+
+            } else {
+                ___distanceTraveled = rightHandPosition - ___lastRightHandPosition + downDir * 2f * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+			}
 
             // right hand collision check
-            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null };
+            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null, null, null };
             itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
+            __instance.rightHandSlideNormal = (Vector3)itCollideParems[7];
+            ___tempHitInfo = (RaycastHit)itCollideParems[8];
 
-            if (itCollideResult) {
-                
+            if (itCollideResult) {       
                 if(__instance.wasRightHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
                     ___firstIterationRightHand = ___lastRightHandPosition - rightHandPosition;
 
@@ -146,12 +215,22 @@ namespace MonkeSwim.Patch
                     ___firstIterationRightHand = ___finalPosition - rightHandPosition;
                 }
 
-                ___playerRigidBody.velocity = Vector3.zero;
+                __instance.rightHandSlipPercentage = ___slipPercentage;
+                __instance.rightHandSlide = ___slipPercentage > __instance.defaultSlideFactor;
+
+                if(__instance.rightHandSlide && Physics.Raycast(___finalPosition, ___tempHitInfo.point - ___finalPosition, out ___hitInfoRight, (___tempHitInfo.point - ___finalPosition).magnitude * 1.05f, __instance.locomotionEnabledLayers.value)) {
+                    __instance.rightHandSlideNormal = ___hitInfoRight.normal;
+
+				} else {
+                    __instance.rightHandSlide = false;
+				}
+
                 ___rightHandColliding = true;
                 __instance.rightHandMaterialTouchIndex = __instance.currentMaterialIndex;
                 __instance.rightHandSurfaceOverride = __instance.currentOverride;
             }
 
+            // if hand is touching, player velocity is hand velocity
             if ((___leftHandColliding || __instance.wasLeftHandTouching) && (___rightHandColliding || __instance.wasRightHandTouching)) {
                 ___rigidBodyMovement = (___firstIterationLeftHand + ___firstIterationRightHand) / 2f;
 
@@ -159,13 +238,13 @@ namespace MonkeSwim.Patch
                 ___rigidBodyMovement = ___firstIterationLeftHand + ___firstIterationRightHand;
             }
 
-            RaycastHit hitInfo = ___hitInfo;
-
             // head collision check
-            itCollideParems = new object[] { __instance.lastHeadPosition, __instance.headCollider.radius, (__instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition), __instance.defaultPrecision, null, false, null};
+            itCollideParems = new object[] { __instance.lastHeadPosition, __instance.headCollider.radius, (__instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition), __instance.defaultPrecision, null, false, null, null, null };
             itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
+            ___junkNormal = (Vector3)itCollideParems[7];
+            ___junkHit = (RaycastHit)itCollideParems[8];
 
             bool raycastResult = false;
 
@@ -174,11 +253,9 @@ namespace MonkeSwim.Patch
 
                 raycastResult = Physics.Raycast(__instance.lastHeadPosition,
                                                  __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
-                                                 out hitInfo,
+                                                 out ___hitInfo,
                                                 (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
                                                  __instance.locomotionEnabledLayers.value);
-
-                ___hitInfo = hitInfo;
 
                 if (raycastResult) {
                     ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
@@ -187,24 +264,27 @@ namespace MonkeSwim.Patch
             } else if (___rigidBodyMovement != Vector3.zero) {
                 raycastResult = Physics.Raycast(__instance.lastHeadPosition,
                                                 __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
-                                                out hitInfo,
+                                                out ___hitInfo,
                                                (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
                                                __instance.locomotionEnabledLayers.value);
-                ___hitInfo = hitInfo;
 
                 if (raycastResult) {
                     ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
                 }
 
-            } else if (Physics.Raycast(__instance.lastHeadPosition, 
-                                       __instance.headCollider.transform.position - __instance.lastHeadPosition,
-                                       out hitInfo,
-                                      (__instance.headCollider.transform.position - __instance.lastHeadPosition).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
-                                      __instance.locomotionEnabledLayers.value)) {
-                ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
+            } else {
+                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
+                                                __instance.headCollider.transform.position - __instance.lastHeadPosition,
+                                                out ___hitInfo,
+                                                (__instance.headCollider.transform.position - __instance.lastHeadPosition).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
+                                                __instance.locomotionEnabledLayers.value);
+
+                if (raycastResult) {
+                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
+				}
+                
             }
 
-            ___hitInfo = hitInfo;
 
             if (___rigidBodyMovement != Vector3.zero) {
                 __instance.transform.position = __instance.transform.position + ___rigidBodyMovement;
@@ -219,10 +299,12 @@ namespace MonkeSwim.Patch
             ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition;
 
             // left hand collision check again
-            itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null };
+            itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null, null, null };
             itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
+            ___junkNormal = (Vector3)itCollideParems[7];
+            ___junkHit = (RaycastHit)itCollideParems[8];
 
             if (itCollideResult) {
                 ___lastLeftHandPosition = ___finalPosition;
@@ -234,16 +316,17 @@ namespace MonkeSwim.Patch
                 ___lastLeftHandPosition = leftHandPosition;
             }
 
-
             //calculate right hand movement again
             rightHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
             ___distanceTraveled = rightHandPosition - ___lastRightHandPosition;
 
             // right hand collision check again
-            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null };
+            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null, null, null };
             itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
             ___finalPosition = (Vector3)itCollideParems[4];
             ___slipPercentage = (float)itCollideParems[6];
+            ___junkNormal = (Vector3)itCollideParems[7];
+            ___junkHit = (RaycastHit)itCollideParems[8];
 
             if (itCollideResult) {
                 ___lastRightHandPosition = ___finalPosition;
@@ -257,45 +340,117 @@ namespace MonkeSwim.Patch
 
             StoreVelocities.Invoke(__instance, null);
 
-            if ((___rightHandColliding || ___leftHandColliding) && !__instance.disableMovement && !__instance.didATurn && ___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
-                if (___denormalizedVelocityAverage.magnitude * __instance.jumpMultiplier > __instance.maxJumpSpeed) {
-                    ___playerRigidBody.velocity = ___denormalizedVelocityAverage.normalized * __instance.maxJumpSpeed;
+            if ((__instance.rightHandSlide || __instance.leftHandSlide) && __instance.leftHandSlide == ___leftHandColliding && __instance.rightHandSlide == ___rightHandColliding) {
+                if (__instance.rightHandSlide && __instance.leftHandSlide) {
+                    ___slideAverageNormal = (__instance.rightHandSlideNormal + __instance.leftHandSlideNormal) / 2f;
 
-                } else {
-                    ___playerRigidBody.velocity = __instance.jumpMultiplier * ___denormalizedVelocityAverage;
-                }
-            }
+                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
+                        Vector3 rightProjected = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.rightHandSlideNormal) * (1f - (1f - __instance.rightHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
+                        Vector3 leftProjected = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.leftHandSlideNormal) * (1f - (1f - __instance.leftHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
+
+                        ___slideAverage = rightProjected + leftProjected / 2f;
+
+                    } else {
+                        ___slideAverage = ___playerRigidBody.velocity;
+                    }
+
+                } else if (__instance.rightHandSlide) {
+                    ___slideAverageNormal = __instance.rightHandSlideNormal;
+
+                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
+                        ___slideAverage = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.rightHandSlideNormal) * (1f - (1f - __instance.rightHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
+                        ___rightHandSurfaceDirection = Vector3.ProjectOnPlane(__instance.rightHandTransform.forward, __instance.rightHandSlideNormal);
+
+                        if (Vector3.Dot(___slideAverage, ___rightHandSurfaceDirection) > 0f) {
+                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, ___rightHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
+
+						} else {
+                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, -___rightHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
+						}
+                    
+                    } else {
+                        ___slideAverage = ___playerRigidBody.velocity;
+					}
+                
+                } else if (__instance.leftHandSlide) {
+                    ___slideAverageNormal = __instance.leftHandSlideNormal;
+
+                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
+                        ___slideAverage = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.leftHandSlideNormal) * (1f - (1f - __instance.leftHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
+                        ___leftHandSurfaceDirection = Vector3.ProjectOnPlane(__instance.leftHandTransform.forward, __instance.leftHandSlideNormal);
+
+                        if (Vector3.Dot(___slideAverage, ___leftHandSurfaceDirection) > 0f) {
+                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, ___leftHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
+
+						} else {
+                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, -___leftHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
+						}
+                   
+                    } else {
+                        ___slideAverage = ___playerRigidBody.velocity;
+					}
+				}
+
+                if((__instance.wasLeftHandSlide || __instance.wasRightHandSlide) && ___playerRigidBody.velocity.magnitude > ___slideAverage.magnitude) {
+                    ___slideAverage = ___slideAverage.normalized * (___playerRigidBody.velocity.magnitude - (___playerRigidBody.velocity.magnitude - ___slideAverage.magnitude) / 2f);
+				}
+
+                ___playerRigidBody.velocity = Vector3.zero;
+            
+            } else if (___leftHandColliding || ___rightHandColliding) {
+                ___playerRigidBody.velocity = Vector3.zero;
+			}
+
+            if ((___rightHandColliding || ___leftHandColliding) && !__instance.disableMovement && !__instance.didATurn) {
+                if (__instance.rightHandSlide || (__instance.leftHandSlide && __instance.leftHandSlide == ___leftHandColliding && __instance.rightHandSlide == ___rightHandColliding)) {
+                    if ((___denormalizedVelocityAverage - ___slideAverage).magnitude > __instance.slideVelocityLimit && Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) > 0f && ___denormalizedVelocityAverage.magnitude > ___slideAverage.magnitude) {
+                        __instance.leftHandSlide = false;
+                        __instance.rightHandSlide = false;
+
+                        if ((___denormalizedVelocityAverage - ___slideAverage).magnitude > __instance.maxJumpSpeed) {
+                            ___playerRigidBody.velocity = (___denormalizedVelocityAverage - ___slideAverage).normalized * __instance.maxJumpSpeed + Vector3.ProjectOnPlane(___slideAverage, ___slideAverageNormal);
+
+						} else {
+                            ___playerRigidBody.velocity = Vector3.ProjectOnPlane(___denormalizedVelocityAverage, ___slideAverageNormal) + Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).normalized * Mathf.Min(__instance.maxJumpSpeed, Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude);
+						}
+					}
+				
+                } else if (___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
+                    if (___denormalizedVelocityAverage.magnitude * __instance.jumpMultiplier > __instance.maxJumpSpeed) {
+                        ___playerRigidBody.velocity = ___denormalizedVelocityAverage.normalized * __instance.maxJumpSpeed;
+
+					} else {
+                        ___playerRigidBody.velocity = __instance.jumpMultiplier * ___denormalizedVelocityAverage;
+					}
+				}
+			}
 
             if (___leftHandColliding && (leftHandPosition - ___lastLeftHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
                                                                                                                                                    __instance.minimumRaycastDistance * __instance.defaultPrecision,
                                                                                                                                                    leftHandPosition - __instance.headCollider.transform.position,
-                                                                                                                                                   out hitInfo,
+                                                                                                                                                   out ___hitInfo,
                                                                                                                                                    (leftHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                                                   __instance.locomotionEnabledLayers.value))
-            {
+                                                                                                                                                   __instance.locomotionEnabledLayers)) {
                 ___lastLeftHandPosition = leftHandPosition;
                 ___leftHandColliding = false;
-            }
-
-            ___hitInfo = hitInfo;
+			}
 
             if (___rightHandColliding && (rightHandPosition - ___lastRightHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
                                                                                                                                                       __instance.minimumRaycastDistance * __instance.defaultPrecision,
                                                                                                                                                       rightHandPosition - __instance.headCollider.transform.position,
-                                                                                                                                                      out hitInfo,
+                                                                                                                                                      out ___hitInfo,
                                                                                                                                                       (rightHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                                                      __instance.locomotionEnabledLayers.value)) 
-{
+                                                                                                                                                      __instance.locomotionEnabledLayers)) {
                 ___lastRightHandPosition = rightHandPosition;
                 ___rightHandColliding = false;
             }
-
-            ___hitInfo = hitInfo;
 
             __instance.leftHandFollower.position = ___lastLeftHandPosition;
             __instance.rightHandFollower.position = ___lastRightHandPosition;
             __instance.wasLeftHandTouching = ___leftHandColliding;
             __instance.wasRightHandTouching = ___rightHandColliding;
+            __instance.wasLeftHandSlide = __instance.leftHandSlide;
+            __instance.wasRightHandSlide = __instance.rightHandSlide;
 
             return false;
         }
