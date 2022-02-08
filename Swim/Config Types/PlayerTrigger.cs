@@ -18,7 +18,7 @@ namespace MonkeSwim.Config
 
        private void OnTriggerExit(Collider collider)
         {
-            if (playerCollided && collider == playerCollided) {
+            if (playerCollided && collider == playerCollider) {
                 PlayerExit();
             }
         }

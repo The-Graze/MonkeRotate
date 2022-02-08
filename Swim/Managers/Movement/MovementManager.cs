@@ -103,7 +103,7 @@ namespace MonkeSwim.Managers
 
         public void AddPlayerVelocity(Vector3 direction, float speed, float max)
         {
-            // speed *= 0.01f;
+            // speed *= (fixedDelta ? Time.fixedDeltaTime : Time.deltaTime);
 
             Vector3 velocity = playerRigidBody.velocity;
             Vector3 newVelocity = direction * speed;
@@ -116,9 +116,10 @@ namespace MonkeSwim.Managers
             ClampToTerminalSpeed();
         }
 
-        public void AddPlayerResistence(float resistence)
+        public void AddPlayerResistence(float resistence, bool fixedDelta)
         {
-            playerRigidBody.velocity = Vector3.MoveTowards(playerRigidBody.velocity, Vector3.zero, resistence * 0.001f);
+            // playerRigidBody.velocity = Vector3.MoveTowards(playerRigidBody.velocity, Vector3.zero, resistence * 0.001f);
+            playerRigidBody.velocity = Vector3.MoveTowards(playerRigidBody.velocity, Vector3.zero, resistence * (fixedDelta ? Time.fixedDeltaTime : Time.deltaTime));
         }
 
         private void ClampToTerminalSpeed()

@@ -42,12 +42,12 @@ namespace MonkeSwim.Tools
 
             if (max > 0f) {
                 if (max > current) {
-                    current = Mathf.Min(current += delta, max);
+                    current = Mathf.Min(current + delta, max);
                 }
 
             } else {
                 if (max < current) {
-                    current = Mathf.Max(current += delta, max);
+                    current = Mathf.Max(current + delta, max);
                 }
             }
         }

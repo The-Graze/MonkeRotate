@@ -65,6 +65,10 @@ namespace MonkeSwim.Config
 
         protected override void PlayerEnter()
         {
+            base.PlayerEnter();
+
+            // Debug.Log("monkeswim player entered gravity zone");
+
             if (UseWorldGravity) {
                 movementManager.EnableGravity(true);
 
@@ -79,6 +83,8 @@ namespace MonkeSwim.Config
 
         protected override void PlayerExit()
         {
+            // Debug.Log("player left gravity zone");
+
             base.PlayerExit();
 
             if (UseWorldGravity) {
@@ -93,12 +99,12 @@ namespace MonkeSwim.Config
 
         private void OnTriggerStay(Collider collider)
         {
-            if ( !playerCollided && playerCollider != collider) return;
+            if (!playerCollided || playerCollider != collider) return;
             // Debug.Log("GravityZone: OnTriggerStay");
             UpdatedGravity();
         }
 
-        //main function for applying gravity each frame
+        //main function for applying each physics update
         protected virtual void UpdatedGravity()
         {
             if (gravityStrength != 0) {

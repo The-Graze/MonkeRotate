@@ -4,6 +4,6 @@
     {
         public const string GUID = "com.AHauntedArmy.MonkeSwim";
         public const string Name = "MonkeSwim";
-        public const string Version = "1.0.4";
+        public const string Version = "1.0.5";
     }
 }

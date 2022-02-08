@@ -69,20 +69,15 @@ namespace MonkeSwim.Managers
         private void FixedUpdate()
         {
             ++physicSteps;   
-            movementManager.AddPlayerResistence(settings.Resistence);
+            movementManager.AddPlayerResistence(settings.Resistence, fixedDelta: true);
         }
 
         private void LateUpdate()
         {
 
-            // add resistence first so swim velocities have priority
-            // Vector3 resistenceVelocity = (Vector3.zero - movementManager.Velocity) * -1f;
-            // movementManager.AddPlayerVelocity(resistenceVelocity.normalized, settings.Resistence, resistenceVelocity.magnitude);
-
-
             float rightHandSpeed = settings.Acceleration * (rightHand.speed * 0.01f) * physicSteps;
             float leftHandSpeed = settings.Acceleration * (leftHand.speed * 0.01f) * physicSteps;
-            
+
             physicSteps = 0;
 
             // Debug.Log("SwimManager: right hand speed: " + rightHandSpeed);
