@@ -67,6 +67,8 @@ namespace MonkeSwim.Managers
             if(ResetPlayerRotation && !rotatePlayerAmount) {
                 RotatePlayer(Vector3.up, 90f, fixedDelta: false);
             }
+
+            UpdateGravityState();
         }
 
         public void RotatePlayer(Vector3 direction, float rotationSpeed, bool fixedDelta)
