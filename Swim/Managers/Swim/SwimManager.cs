@@ -69,7 +69,7 @@ namespace MonkeSwim.Managers
         private void FixedUpdate()
         {
             ++physicSteps;   
-            movementManager.AddPlayerResistence(settings.Resistence * 0.01f, fixedDelta: true);
+            movementManager.AddPlayerResistence(settings.Resistence, fixedDelta: true);
         }
 
         private void LateUpdate()
