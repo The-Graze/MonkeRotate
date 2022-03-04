@@ -466,7 +466,6 @@ namespace MonkeSwim.Patch
                                                                        ref int ___tempMatIndex, 
                                                                        ref Photon.Realtime.Player ___tempPlayer)
         {
-          
             //if mod is off skip this function
             if (!modEnabled) return true;
 
@@ -688,5 +687,5 @@ namespace MonkeSwim.Patch
             bodyLockedRotation = Quaternion.Euler(0f, cameraY, 0f);
             bodyRotation = playerTransform.rotation * bodyLockedRotation;
         }
-    }
+	}
 }

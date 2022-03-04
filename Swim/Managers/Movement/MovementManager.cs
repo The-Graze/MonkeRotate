@@ -2,20 +2,27 @@
 using UnityEngine;
 using HarmonyLib;
 
-using MonkeSwim.Tools.Averages;
 using MonkeSwim.Tools;
 
 namespace MonkeSwim.Managers
 {
     public class MovementManager : MonoBehaviour
     {
+        private GorillaLocomotion.Player playerInstance = null;
+        private FieldInfo lastLeftHandPosition = null;
+        private FieldInfo lastRightHandPosition = null;
+        private FieldInfo lastPlayerPosition = null;
+
         private Rigidbody playerRigidBody = null;
         private GameObject playerTurnParent = null;
+        private GameObject player = null;
         private GameObject playerBody = null;
 
         private Counter enableGravityAmount = new Counter(0u);
         private Counter disableGravityAmount = new Counter(0u);
         private Counter rotatePlayerAmount = new Counter(0u);
+
+        private bool enabledRotation = false;
 
         public bool UseGravity { get; set; }
         public bool ResetPlayerRotation { get; set; }
@@ -44,12 +51,18 @@ namespace MonkeSwim.Managers
         public void Awake()
         {
             this.enabled = false;
+
+            playerInstance = GorillaLocomotion.Player.Instance;
+            player = playerInstance.gameObject;
             playerTurnParent = GorillaLocomotion.Player.Instance.turnParent;
             playerBody = GorillaLocomotion.Player.Instance.bodyCollider.gameObject;
+
             playerRigidBody = (Rigidbody)AccessTools.Field(typeof(GorillaLocomotion.Player), "playerRigidBody").GetValue(GorillaLocomotion.Player.Instance);
+            lastLeftHandPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastLeftHandPosition");
+            lastRightHandPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastRightHandPosition");
+            lastPlayerPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastPosition");
 
             VmodMonkeMapLoader.Events.OnMapEnter += MapLeftCallback;
-
         }
 
         public void OnDestroy()
@@ -75,22 +88,53 @@ namespace MonkeSwim.Managers
         {
             float deltaTime = fixedDelta ? Time.fixedDeltaTime : Time.deltaTime;
 
+            Quaternion newRotation = Quaternion.FromToRotation(player.transform.up, direction) * player.transform.rotation;
+            SetPlayerRotation(Quaternion.RotateTowards(player.transform.rotation, newRotation, rotationSpeed * deltaTime));
+        }
+
+        public void SetPlayerRotation(Quaternion rotation)
+		{
+            if (!enabledRotation)
+                return;
+
+            // store position before rotation
+            Vector3 lastPos = player.transform.position;
+            Vector3 lastLeftPos = playerInstance.leftHandTransform.position;
+            Vector3 lastRightPos = playerInstance.rightHandTransform.position;
+            Vector3 lastHeadPos = playerInstance.headCollider.transform.position;
+
             // actual player position is offset from the turn parent
             // calculate the offset in local space of the player body without scale
-            Vector3 parentOffset = Quaternion.Inverse(playerTurnParent.transform.rotation) * (playerTurnParent.transform.position - playerBody.transform.position);
-
-            // calculate the new rotation
-            Quaternion newRotation = Quaternion.FromToRotation(playerTurnParent.transform.up, direction) * playerTurnParent.transform.rotation;
-            newRotation = Quaternion.RotateTowards(playerTurnParent.transform.rotation, newRotation, rotationSpeed * deltaTime);
+            Vector3 parentOffset = Quaternion.Inverse(player.transform.rotation) * (player.transform.position - playerBody.transform.position);
 
             // apply the rotation to the offset
-            parentOffset = newRotation * parentOffset;
+            parentOffset = rotation * parentOffset;
 
             // move the turn parents position to where its new offset is after rotating
-            playerTurnParent.transform.position = playerBody.transform.position + parentOffset;
+            player.transform.position = playerBody.transform.position + parentOffset;
 
             // apply the new rotation
-            playerTurnParent.transform.rotation = newRotation;
+           player.transform.rotation = rotation;
+
+            // calculate position change offsets after rotation
+            Vector3 lastPosOffset = player.transform.position - lastPos;
+            Vector3 lastLeftPosOffset = lastLeftPos - playerInstance.leftHandTransform.position;
+            Vector3 lastRightPosOffset = lastRightPos - playerInstance.rightHandTransform.position;
+            Vector3 lastHeadPosOFfset = lastHeadPos - playerInstance.headCollider.transform.position;
+            
+            Vector3 tempVec;
+
+            // add the offsets to the lastposition information so rotation moving the hand and body doesn't add to player velocity
+            GorillaLocomotion.Player.Instance.lastHeadPosition += lastHeadPosOFfset;
+
+            tempVec = (Vector3)lastPlayerPosition.GetValue(playerInstance);
+            lastPlayerPosition.SetValue(playerInstance, tempVec + lastPosOffset);
+
+            tempVec = (Vector3)lastRightHandPosition.GetValue(playerInstance);
+            lastRightHandPosition.SetValue(playerInstance, tempVec + lastRightPosOffset);
+
+            tempVec = (Vector3)lastLeftHandPosition.GetValue(playerInstance);
+            lastLeftHandPosition.SetValue(playerInstance, tempVec + lastLeftPosOffset);
         }
 
         public void RegisterRotationIntent(bool intent)
@@ -172,19 +216,26 @@ namespace MonkeSwim.Managers
 
         private void MapLeftCallback(bool enter)
         {
-            if (enter) {
+            if (enter && !this.enabled) {
                 UpdateGravityState();
-                enabled = true;
+                this.enabled = true;
+
+                enabledRotation = playerInstance != null && lastLeftHandPosition != null && lastRightHandPosition != null && lastPlayerPosition != null ;
+
                 return;
             }
+
+            if (!this.enabled)
+                return;
 
             enableGravityAmount.value = 0;
             disableGravityAmount.value = 0;
             rotatePlayerAmount.value = 0;
 
-            playerTurnParent.transform.rotation = Patch.RotationPatch.PlayerLockedRotation;
+            // playerTurnParent.transform.rotation = Patch.RotationPatch.PlayerLockedRotation;
+            SetPlayerRotation(Quaternion.FromToRotation(player.transform.up, Vector3.up) * player.transform.rotation);
             playerRigidBody.useGravity = true;
-            enabled = false;
+            this.enabled = false;
         }
     }
 }

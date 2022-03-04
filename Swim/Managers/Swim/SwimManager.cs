@@ -74,7 +74,6 @@ namespace MonkeSwim.Managers
 
         private void LateUpdate()
         {
-
             float rightHandSpeed = settings.Acceleration * (rightHand.speed * 0.01f) * physicSteps;
             float leftHandSpeed = settings.Acceleration * (leftHand.speed * 0.01f) * physicSteps;
 
