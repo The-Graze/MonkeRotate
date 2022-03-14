@@ -159,7 +159,8 @@ namespace MonkeSwim.Patch
                                                                                       ref RaycastHit ___hitInfo,
                                                                                       ref RaycastHit ___junkHit)
         {
-            if (!modEnabled) return true;
+            if (!modEnabled) 
+                return true;
 
             SavePlayerRotation(__instance);
 
@@ -486,6 +487,52 @@ namespace MonkeSwim.Patch
 
             return false;
         }
+
+        [HarmonyPatch(typeof(GorillaLocomotion.Player))]
+        [HarmonyPrefix, HarmonyPatch("BodyCollider", MethodType.Normal)]
+        internal static bool Prefix_PlayerBodyCollider(GorillaLocomotion.Player __instance, ref float ___bodyMaxRadius,
+                                                                                            ref float ___bodyInitialHeight,
+                                                                                            ref float ___bodyInitialRadius,
+                                                                                            ref RaycastHit ___bodyHitInfo,
+                                                                                            ref Vector3 ___bodyOffsetVector)
+        {
+            if (!modEnabled)
+                return true;
+
+            Vector3 downDir = __instance.transform.up * -1f;
+            object[] funcParems = new object[] { __instance.headCollider.transform, __instance.bodyOffset };
+            Vector3 positionOffset = (Vector3)PositionWithOffset.Invoke(__instance, funcParems);
+
+            funcParems = new object[] { ___bodyInitialRadius, positionOffset, ___bodyMaxRadius };
+            bool funcResultBool = (bool)MaxSphereSizeForNoOverlap.Invoke(__instance, funcParems);
+            ___bodyMaxRadius = (float)funcParems[2];
+
+            if (funcResultBool) {
+                __instance.bodyCollider.radius = ___bodyMaxRadius;
+
+                if (Physics.SphereCast(positionOffset, ___bodyMaxRadius, downDir, out ___bodyHitInfo, ___bodyInitialHeight - ___bodyMaxRadius, __instance.locomotionEnabledLayers)) {
+                    __instance.bodyCollider.height = ___bodyHitInfo.distance + ___bodyMaxRadius;
+
+                } else {
+                    __instance.bodyCollider.height = ___bodyInitialHeight;
+                }
+
+                if (!__instance.bodyCollider.gameObject.activeSelf) {
+                    __instance.bodyCollider.gameObject.SetActive(true);
+                }
+            
+            } else {
+                __instance.bodyCollider.gameObject.SetActive(false);
+			}
+
+            __instance.bodyCollider.height = Mathf.Lerp(__instance.bodyCollider.height, ___bodyInitialHeight, __instance.bodyLerp);
+            __instance.bodyCollider.radius = Mathf.Lerp(__instance.bodyCollider.radius, ___bodyInitialRadius, __instance.bodyLerp);
+            ___bodyOffsetVector = downDir * __instance.bodyCollider.height / 2f;
+            __instance.bodyCollider.transform.position = positionOffset + ___bodyOffsetVector;
+            __instance.bodyCollider.transform.rotation = bodyRotation;
+
+            return false;
+		}
 
         #endregion
 
