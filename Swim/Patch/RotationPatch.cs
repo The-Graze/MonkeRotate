@@ -148,23 +148,15 @@ namespace MonkeSwim.Patch
                                                                                       ref Vector3 ___rigidBodyMovement, 
                                                                                       ref Vector3 ___firstIterationLeftHand,
                                                                                       ref Vector3 ___firstIterationRightHand,
-                                                                                      ref Vector3 ___distanceTraveled,
                                                                                       ref Vector3 ___lastLeftHandPosition,
                                                                                       ref Vector3 ___lastRightHandPosition,
                                                                                       ref Vector3 ___finalPosition,
                                                                                       ref Vector3 ___denormalizedVelocityAverage,
-                                                                                      ref Vector3 ___bodyOffsetVector,
                                                                                       ref Vector3 ___slideAverage,
                                                                                       ref Vector3 ___slideAverageNormal,
-                                                                                      ref Vector3 ___junkNormal,
-                                                                                      ref Vector3 ___rightHandSurfaceDirection,
-                                                                                      ref Vector3 ___leftHandSurfaceDirection,
                                                                                       ref Vector3 ___surfaceDirection,
                                                                                       ref Rigidbody ___playerRigidBody,
                                                                                       ref RaycastHit ___hitInfo,
-                                                                                      ref RaycastHit ___tempHitInfo,
-                                                                                      ref RaycastHit ___hitInfoLeft,
-                                                                                      ref RaycastHit ___hitInfoRight,
                                                                                       ref RaycastHit ___junkHit)
         {
             if (!modEnabled) return true;
