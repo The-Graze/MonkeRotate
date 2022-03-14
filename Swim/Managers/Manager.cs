@@ -92,7 +92,7 @@ namespace MonkeSwim.Managers
                             netRot.enabled = true;
                         }
 
-                        Patch.RotationPatch.modEnabled = true;
+                        Patch.RotationPatch.ModEnabled = true;
                         Patch.MonkeSwimPatch.ApplyPatch();
                         break;
                     }
@@ -106,7 +106,7 @@ namespace MonkeSwim.Managers
                 netRot.enabled = false;
             }
 
-            Patch.RotationPatch.modEnabled = false;
+            Patch.RotationPatch.ModEnabled = false;
         }
 #endif
     }

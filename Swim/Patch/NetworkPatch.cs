@@ -90,7 +90,7 @@ namespace MonkeSwim.Patch
             NetworkRotation networkRotation = __instance.gameObject.AddComponent<NetworkRotation>();
             networkRotation.NetworkedPlayer = __instance;
             networkRotation.PlayerPhotonView = __instance.photonView;
-            networkRotation.enabled = RotationPatch.modEnabled;
+            networkRotation.enabled = RotationPatch.ModEnabled;
         }
     }
 }

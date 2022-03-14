@@ -1,4 +1,10 @@
-﻿using HarmonyLib;
+﻿/*
+    everything in here is copyright owned by the gorilla tag developer.
+    there's a lot of copy-paste code from gorilla tag, modified slightly in order to not break
+    the player rigging when rotation the player off the worlds up axis
+ */
+
+using HarmonyLib;
 using System.Reflection;
 
 using Photon.Pun;
@@ -16,6 +22,14 @@ namespace MonkeSwim.Patch
     [HarmonyPatch]
     internal static class RotationPatch
     {
+        public static bool ModEnabled {
+            get => modEnabled;
+            set => modEnabled = value && reflectionInfoFound;          
+		}
+           
+        private static bool modEnabled = false;
+        private static bool reflectionInfoFound = false;
+
         // reflection methods for player update
         private static MethodInfo StoreVelocities;
         private static MethodInfo PositionWithOffset;
@@ -23,11 +37,13 @@ namespace MonkeSwim.Patch
         private static MethodInfo CurrentLeftHandPosition;
         private static MethodInfo IterativeCollisionSphereCast;
         private static MethodInfo AntiTeleportTechnology;
+        private static MethodInfo FirstHandIteration;
+        private static MethodInfo FinalHandPosition;
+        private static MethodInfo MaxSphereSizeForNoOverlap;
 
         // reflection methods for VRRig lateupdate
         private static MethodInfo CheckForEarlyAccess;
 
-        public static bool modEnabled = false;
 
         private static Quaternion axisLockedRotation; // players rotating if it was locked on global Vector3.up axis
         private static Quaternion playerUpRotation; // players up direction rotation in global space
@@ -57,26 +73,69 @@ namespace MonkeSwim.Patch
             AntiTeleportTechnology = AccessTools.Method(typeof(GorillaLocomotion.Player), "AntiTeleportTechnology");
             // Debug.Log("AntiTeleportTechnology == null? " + (AntiTeleportTechnology == null));
 
-            PositionWithOffset = AccessTools.Method(typeof(GorillaLocomotion.Player), "PositionWithOffset", new System.Type[]{typeof(Transform), typeof(Vector3) });
+            PositionWithOffset = AccessTools.Method(typeof(GorillaLocomotion.Player), "PositionWithOffset", new System.Type[]{ typeof(Transform), typeof(Vector3) });
             // Debug.Log("PositionWithOffset == null? " + (PositionWithOffset == null));
+
+            MaxSphereSizeForNoOverlap = AccessTools.Method(typeof(GorillaLocomotion.Player), "MaxSphereSizeForNoOverlap", new System.Type[] { typeof(float), typeof(Vector3), typeof(float).MakeByRefType() });
 
             IterativeCollisionSphereCast = AccessTools.Method(typeof(GorillaLocomotion.Player), "IterativeCollisionSphereCast", new System.Type[] { 
                                                                                                                                                     typeof(Vector3), 
                                                                                                                                                     typeof(float), 
-                                                                                                                                                    typeof(Vector3),                                                                                                                                             
-                                                                                                                                                    typeof(float), 
+                                                                                                                                                    typeof(Vector3), 
                                                                                                                                                     typeof(Vector3).MakeByRefType(),
                                                                                                                                                     typeof(bool), 
                                                                                                                                                     typeof(float).MakeByRefType(),
-                                                                                                                                                    typeof(Vector3).MakeByRefType(),
-                                                                                                                                                    typeof(RaycastHit).MakeByRefType()
+                                                                                                                                                    typeof(RaycastHit).MakeByRefType(),
+                                                                                                                                                    typeof(bool)
                                                                                                                                                    } );
             // Debug.Log("IterativeCollisionSphereCast == null? " + (IterativeCollisionSphereCast == null));
+
+            FirstHandIteration = AccessTools.Method(typeof(GorillaLocomotion.Player), "FirstHandIteration", new System.Type[] { 
+                                                                                                                                typeof(Transform),
+                                                                                                                                typeof(Vector3),
+                                                                                                                                typeof(Vector3),
+                                                                                                                                typeof(bool),
+                                                                                                                                typeof(bool).MakeByRefType(),
+                                                                                                                                typeof(Vector3).MakeByRefType(),
+                                                                                                                                typeof(float).MakeByRefType(),
+                                                                                                                                typeof(bool).MakeByRefType(),
+                                                                                                                                typeof(Vector3).MakeByRefType(),
+                                                                                                                                typeof(bool).MakeByRefType(),
+                                                                                                                                typeof(int).MakeByRefType(),
+                                                                                                                                typeof(GorillaSurfaceOverride).MakeByRefType()
+                                                                                                                               } );
+
+            FinalHandPosition = AccessTools.Method(typeof(GorillaLocomotion.Player), "FinalHandPosition", new System.Type[] {
+                                                                                                                              typeof(Transform),
+                                                                                                                              typeof(Vector3),
+                                                                                                                              typeof(Vector3),
+                                                                                                                              typeof(bool),
+                                                                                                                              typeof(bool),
+                                                                                                                              typeof(bool).MakeByRefType(),
+                                                                                                                              typeof(bool),
+                                                                                                                              typeof(bool).MakeByRefType(),
+                                                                                                                              typeof(int),
+                                                                                                                              typeof(int).MakeByRefType(),
+                                                                                                                              typeof(GorillaSurfaceOverride),
+                                                                                                                              typeof(GorillaSurfaceOverride).MakeByRefType()
+                                                                                                                             } );
+
+            if(CheckForEarlyAccess == null || StoreVelocities == null 
+                || CurrentLeftHandPosition == null   || CurrentRightHandPosition == null
+                || AntiTeleportTechnology == null    || PositionWithOffset == null
+                || MaxSphereSizeForNoOverlap == null ||IterativeCollisionSphereCast == null
+                || FirstHandIteration == null        || FinalHandPosition == null)
+            {
+                reflectionInfoFound = false;
+
+			} else {
+                reflectionInfoFound = true;
+			}
         }
 
         #region PLAYERUPDATE
         [HarmonyPatch(typeof(GorillaLocomotion.Player))]
-        [HarmonyPrefix, HarmonyPatch("Update", MethodType.Normal)]
+        [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
         internal static bool Prefix_PlayerUpdate(GorillaLocomotion.Player __instance, ref bool ___leftHandColliding, 
                                                                                       ref bool ___rightHandColliding,
                                                                                       ref float ___slipPercentage,
@@ -674,7 +733,7 @@ namespace MonkeSwim.Patch
 
         private static void SavePlayerRotation(GorillaLocomotion.Player playerInstance)
         {
-            Transform playerTransform = playerInstance.turnParent.transform;
+            Transform playerTransform = playerInstance.transform;
             if (playerTransform == null) return;
 
             //save the players rotation on the global Vector3.up axis
