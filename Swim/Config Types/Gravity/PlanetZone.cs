@@ -49,7 +49,7 @@ namespace MonkeSwim.Config
         // player offset is used to find the gravity direction and player distance from gravity center
         protected virtual Vector3 FindPlayerOffset()
         {
-            return playerCollider.gameObject.transform.position - gameObject.transform.position;
+            return gravityStrength > 0 ? gameObject.transform.position - playerCollider.gameObject.transform.position : playerCollider.gameObject.transform.position - gameObject.transform.position;
         }
 
         protected override void PlayerExit()

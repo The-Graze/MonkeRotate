@@ -118,9 +118,9 @@ namespace MonkeSwim.Managers
 
             // calculate position change offsets after rotation
             Vector3 lastPosOffset = player.transform.position - lastPos;
-            Vector3 lastLeftPosOffset = lastLeftPos - playerInstance.leftHandTransform.position;
-            Vector3 lastRightPosOffset = lastRightPos - playerInstance.rightHandTransform.position;
-            Vector3 lastHeadPosOFfset = lastHeadPos - playerInstance.headCollider.transform.position;
+            Vector3 lastLeftPosOffset = playerInstance.leftHandTransform.position - lastLeftPos;
+            Vector3 lastRightPosOffset = playerInstance.rightHandTransform.position - lastRightPos;
+            Vector3 lastHeadPosOFfset = playerInstance.headCollider.transform.position - lastHeadPos;
             
             Vector3 tempVec;
 

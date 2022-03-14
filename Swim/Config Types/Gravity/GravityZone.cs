@@ -17,6 +17,8 @@ namespace MonkeSwim.Config
         [SerializeField] public bool UseWorldGravity = false;
 
         [Header("Rotation Settings")]
+        [Tooltip("If enabled, rotate the play away from gravity direction to be upside down")]
+        [SerializeField] protected bool invertRotationDirection = false;
         [SerializeField] protected bool rotatePlayer;
         [SerializeField] protected float rotationSpeed;
 
@@ -42,6 +44,9 @@ namespace MonkeSwim.Config
             gravityDirection = gameObject.transform.up;
             rotationIntent = rotatePlayer;
             gravityStrength *= 0.01f;
+
+            if (gravityStrength > 0)
+                gravityDirection *= -1f;
 
             /*
             Debug.Log("GravityZone: Awake");
@@ -108,7 +113,8 @@ namespace MonkeSwim.Config
         protected virtual void UpdatedGravity()
         {
             if (gravityStrength != 0) {
-                movementManager.AddPlayerVelocity(gravityDirection, gravityStrength, maxGravityStrength);
+                Vector3 gravDir = !invertRotationDirection ? gravityDirection : gravityDirection * -1f;
+                movementManager.AddPlayerVelocity(gravDir, gravityStrength, maxGravityStrength);
             }
 
             if (rotatePlayer) {
