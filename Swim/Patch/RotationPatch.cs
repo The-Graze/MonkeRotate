@@ -138,10 +138,13 @@ namespace MonkeSwim.Patch
         [HarmonyPrefix, HarmonyPatch("LateUpdate", MethodType.Normal)]
         internal static bool Prefix_PlayerUpdate(GorillaLocomotion.Player __instance, ref bool ___leftHandColliding, 
                                                                                       ref bool ___rightHandColliding,
+                                                                                      ref bool ___areBothTouching,
+                                                                                      ref int ___touchPoints,
                                                                                       ref float ___slipPercentage,
                                                                                       ref float ___tempRealTime,
                                                                                       ref float ___calcDeltaTime,
                                                                                       ref float ___lastRealTime,
+                                                                                      ref float ___averageSlipPercentage,
                                                                                       ref Vector3 ___rigidBodyMovement, 
                                                                                       ref Vector3 ___firstIterationLeftHand,
                                                                                       ref Vector3 ___firstIterationRightHand,
@@ -156,6 +159,7 @@ namespace MonkeSwim.Patch
                                                                                       ref Vector3 ___junkNormal,
                                                                                       ref Vector3 ___rightHandSurfaceDirection,
                                                                                       ref Vector3 ___leftHandSurfaceDirection,
+                                                                                      ref Vector3 ___surfaceDirection,
                                                                                       ref Rigidbody ___playerRigidBody,
                                                                                       ref RaycastHit ___hitInfo,
                                                                                       ref RaycastHit ___tempHitInfo,
@@ -179,10 +183,7 @@ namespace MonkeSwim.Patch
             __instance.rightHandSlideNormal = __instance.turnParent.transform.up;
             __instance.leftHandSlideNormal = __instance.turnParent.transform.up;
 
-            __instance.bodyCollider.transform.position = (Vector3)PositionWithOffset.Invoke(__instance, new object[] { __instance.headCollider.transform, __instance.bodyOffset }) + (__instance.turnParent.transform.rotation * ___bodyOffsetVector);
-            __instance.bodyCollider.transform.rotation = bodyRotation;
-
-            Vector3 downDir = __instance.turnParent.transform.up * -1f;
+            Vector3 downDir = __instance.transform.up * -1f;
 
 			if (__instance.debugMovement) {
                 ___tempRealTime = Time.time;
@@ -198,310 +199,288 @@ namespace MonkeSwim.Patch
                     ___calcDeltaTime = 0.05f;
 			}
 
-            AntiTeleportTechnology.Invoke(__instance, null);
+            if (!__instance.didAJump) {
+                if (__instance.wasLeftHandTouching || __instance.wasRightHandTouching) {
+                    __instance.transform.position = __instance.transform.position + 4.95f * downDir * ___calcDeltaTime * ___calcDeltaTime;
 
-            if (__instance.wasLeftHandSlide || __instance.wasRightHandSlide) {
-                __instance.transform.position = __instance.transform.position + ___slideAverage * ___calcDeltaTime;
-                ___playerRigidBody.velocity = ___slideAverage + downDir * 9.8f * ___calcDeltaTime;
+                    if (Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) <= 0f && Vector3.Dot(downDir, ___slideAverageNormal) <= 0f) {
+                        __instance.transform.position = __instance.transform.position - Vector3.Project(Mathf.Min(__instance.stickDepth, Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude * ___calcDeltaTime) * ___slideAverageNormal, downDir);
+                    }
+                }
+
+                if (__instance.wasLeftHandSlide || __instance.wasRightHandSlide) {
+                    __instance.transform.position = __instance.transform.position + ___slideAverage * ___calcDeltaTime;
+                    ___slideAverage += 9.8f * downDir * ___calcDeltaTime;
+                }
+            }
+
+            object[] funcParems = null;
+
+            /* first iteration left hand */
+            // variables passed to the functions
+            funcParems = new object[] { __instance.leftHandTransform,           __instance.leftHandOffset, 
+                                        ___lastLeftHandPosition,                __instance.wasLeftHandSlide, 
+                                        __instance.wasLeftHandTouching,         ___firstIterationLeftHand,
+                                        __instance.leftHandSlipPercentage,      __instance.leftHandSlide,
+                                        __instance.leftHandSlideNormal,         ___leftHandColliding,
+                                        __instance.leftHandMaterialTouchIndex,  __instance.leftHandSurfaceOverride };
+
+            // run GorillaLocomotion.Player.FirstHandIteration(...)
+            FirstHandIteration.Invoke(__instance, funcParems);
+
+            // assign the out values 
+            __instance.wasLeftHandTouching  = (bool)funcParems[4];
+            ___firstIterationLeftHand = (Vector3)funcParems[5];
+            __instance.leftHandSlipPercentage = (float)funcParems[6];
+            __instance.leftHandSlide = (bool)funcParems[7];
+            __instance.leftHandSlideNormal = (Vector3)funcParems[8];
+            ___leftHandColliding = (bool)funcParems[9];
+            __instance.leftHandMaterialTouchIndex = (int)funcParems[10];
+            __instance.leftHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
+
+            /* first iteration right hand */
+            // variables passed to the function
+            funcParems = new object[] { __instance.rightHandTransform,           __instance.rightHandOffset,
+                                        ___lastRightHandPosition,                __instance.wasRightHandSlide,
+                                        __instance.wasRightHandTouching,         ___firstIterationRightHand,
+                                        __instance.rightHandSlipPercentage,      __instance.rightHandSlide,
+                                        __instance.rightHandSlideNormal,         ___rightHandColliding,
+                                        __instance.rightHandMaterialTouchIndex,  __instance.rightHandSurfaceOverride };
+
+            // run GorillaLocomotion.Player.FirstHandIteration(...)
+            FirstHandIteration.Invoke(__instance, funcParems);
+
+            // assign the out values
+            __instance.wasRightHandTouching = (bool)funcParems[4];
+            ___firstIterationRightHand = (Vector3)funcParems[5];
+            __instance.rightHandSlipPercentage = (float)funcParems[6];
+            __instance.rightHandSlide = (bool)funcParems[7];
+            __instance.rightHandSlideNormal = (Vector3)funcParems[8];
+            ___rightHandColliding = (bool)funcParems[9];
+            __instance.rightHandMaterialTouchIndex = (int)funcParems[10];
+            __instance.rightHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
+
+            /* calculate player movement vector */
+            ___touchPoints = 0;
+            ___rigidBodyMovement = Vector3.zero;
+
+            // add left hand position change
+            if (___leftHandColliding || __instance.wasLeftHandTouching) {
+                ___rigidBodyMovement += ___firstIterationLeftHand;
+                ++___touchPoints;
 			}
 
-            Vector3 leftHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
-            Vector3 rightHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
-
-            ___slideAverage = Vector3.zero;
-
-            // calculate left hand movement
-            if (__instance.wasLeftHandSlide) {
-                ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition + ___slideAverageNormal.normalized * (0f - __instance.slideStickDistance) * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
-
-            } else {
-                ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition + downDir * 2f * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+            // add right hand position change
+            if (___rightHandColliding || __instance.wasRightHandTouching) {
+                ___rigidBodyMovement += ___firstIterationLeftHand;
+                ++___touchPoints;
             }
 
-            // left hand collision check
-            object[] itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null, null, null };
-            bool itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
-            ___finalPosition = (Vector3)itCollideParems[4];
-            ___slipPercentage = (float)itCollideParems[6];
-            __instance.leftHandSlideNormal = (Vector3)itCollideParems[7];
-            ___tempHitInfo = (RaycastHit)itCollideParems[8];
+            if (___touchPoints != 0)
+                ___rigidBodyMovement /= (float)___touchPoints;
 
-            if (itCollideResult) {
-                if (__instance.wasLeftHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
-                    ___firstIterationLeftHand = ___lastLeftHandPosition - leftHandPosition;
+            // clamp movement vector to a collision point
+            // variables passed to the function
+            funcParems = new object[] { __instance.lastHeadPosition,
+                                        __instance.headCollider.radius * 0.9f,
+                                        __instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition,
+                                        ___finalPosition,
+                                        false,
+                                        ___slipPercentage,
+                                        ___junkHit,
+                                        true };
 
-                } else {
-                    ___firstIterationLeftHand = ___finalPosition - leftHandPosition;
-                }
+            // store the function result
+            bool resultBool = false;
 
-                __instance.leftHandSlipPercentage = ___slipPercentage;
-                __instance.leftHandSlide = ___slipPercentage > __instance.defaultSlideFactor;
+            // run GorillaLocomotion.Player.IterativeCollisionSphereCast(...)
+             resultBool = (bool)IterativeCollisionSphereCast.Invoke(__instance, funcParems);
 
-                if (__instance.leftHandSlide && Physics.Raycast(___finalPosition, ___tempHitInfo.point - ___finalPosition, out ___hitInfoLeft, (___tempHitInfo.point - ___finalPosition).magnitude * 1.05f, __instance.locomotionEnabledLayers.value)) {
-                    __instance.leftHandSlideNormal = ___hitInfoLeft.normal;
+            // assign the out values
+            ___finalPosition = (Vector3)funcParems[3];
+            ___slipPercentage = (float)funcParems[5];
+            ___junkHit = (RaycastHit)funcParems[6];
 
-				} else {
-                    __instance.leftHandSlide = false;
-				}
-
-                ___leftHandColliding = true;
-                __instance.leftHandMaterialTouchIndex = __instance.currentMaterialIndex;
-                __instance.leftHandSurfaceOverride = __instance.currentOverride;
-            
-            }
-
-            // calculate right hand movement
-            if (__instance.wasRightHandSlide) {
-                ___distanceTraveled = rightHandPosition - ___lastRightHandPosition + ___slideAverageNormal.normalized * (0f - __instance.slideStickDistance) * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
-
-            } else {
-                ___distanceTraveled = rightHandPosition - ___lastRightHandPosition + downDir * 2f * 9.8f * ___calcDeltaTime * ___calcDeltaTime;
+			// check the result and update the movement vector if true
+			if (resultBool) {
+                ___rigidBodyMovement = ___finalPosition - __instance.headCollider.transform.position;
 			}
 
-            // right hand collision check
-            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, true, null, null, null };
-            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
-            ___finalPosition = (Vector3)itCollideParems[4];
-            ___slipPercentage = (float)itCollideParems[6];
-            __instance.rightHandSlideNormal = (Vector3)itCollideParems[7];
-            ___tempHitInfo = (RaycastHit)itCollideParems[8];
+            // check if we might hit in the future
+            resultBool = Physics.Raycast(__instance.lastHeadPosition,
+                                         __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
+                                         out ___hitInfo,
+                                         (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude,
+                                         __instance.locomotionEnabledLayers.value);
 
-            if (itCollideResult) {       
-                if(__instance.wasRightHandTouching && (___slipPercentage == __instance.defaultSlideFactor || ___slipPercentage == 0.001f)) {
-                    ___firstIterationRightHand = ___lastRightHandPosition - rightHandPosition;
+            // if true clamp, clamp the movement vector to the difference in head position
+            if (resultBool) {
+                ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
+			}
 
-                } else {
-                    ___firstIterationRightHand = ___finalPosition - rightHandPosition;
-                }
-
-                __instance.rightHandSlipPercentage = ___slipPercentage;
-                __instance.rightHandSlide = ___slipPercentage > __instance.defaultSlideFactor;
-
-                if(__instance.rightHandSlide && Physics.Raycast(___finalPosition, ___tempHitInfo.point - ___finalPosition, out ___hitInfoRight, (___tempHitInfo.point - ___finalPosition).magnitude * 1.05f, __instance.locomotionEnabledLayers.value)) {
-                    __instance.rightHandSlideNormal = ___hitInfoRight.normal;
-
-				} else {
-                    __instance.rightHandSlide = false;
-				}
-
-                ___rightHandColliding = true;
-                __instance.rightHandMaterialTouchIndex = __instance.currentMaterialIndex;
-                __instance.rightHandSurfaceOverride = __instance.currentOverride;
-            }
-
-            // if hand is touching, player velocity is hand velocity
-            if ((___leftHandColliding || __instance.wasLeftHandTouching) && (___rightHandColliding || __instance.wasRightHandTouching)) {
-                ___rigidBodyMovement = (___firstIterationLeftHand + ___firstIterationRightHand) / 2f;
-
-            } else {
-                ___rigidBodyMovement = ___firstIterationLeftHand + ___firstIterationRightHand;
-            }
-
-            // head collision check
-            itCollideParems = new object[] { __instance.lastHeadPosition, __instance.headCollider.radius, (__instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition), __instance.defaultPrecision, null, false, null, null, null };
-            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
-            ___finalPosition = (Vector3)itCollideParems[4];
-            ___slipPercentage = (float)itCollideParems[6];
-            ___junkNormal = (Vector3)itCollideParems[7];
-            ___junkHit = (RaycastHit)itCollideParems[8];
-
-            bool raycastResult = false;
-
-            if (itCollideResult) {
-                ___rigidBodyMovement = ___finalPosition - __instance.lastHeadPosition;
-
-                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
-                                                 __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
-                                                 out ___hitInfo,
-                                                (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
-                                                 __instance.locomotionEnabledLayers.value);
-
-                if (raycastResult) {
-                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
-                }
-
-            } else if (___rigidBodyMovement != Vector3.zero) {
-                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
-                                                __instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement,
-                                                out ___hitInfo,
-                                               (__instance.headCollider.transform.position - __instance.lastHeadPosition + ___rigidBodyMovement).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
-                                               __instance.locomotionEnabledLayers.value);
-
-                if (raycastResult) {
-                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
-                }
-
-            } else {
-                raycastResult = Physics.Raycast(__instance.lastHeadPosition,
-                                                __instance.headCollider.transform.position - __instance.lastHeadPosition,
-                                                out ___hitInfo,
-                                                (__instance.headCollider.transform.position - __instance.lastHeadPosition).magnitude + __instance.headCollider.radius * __instance.defaultPrecision * 0.999f,
-                                                __instance.locomotionEnabledLayers.value);
-
-                if (raycastResult) {
-                    ___rigidBodyMovement = __instance.lastHeadPosition - __instance.headCollider.transform.position;
-				}
-                
-            }
-
-
+            // move the player to the new positon
             if (___rigidBodyMovement != Vector3.zero) {
                 __instance.transform.position = __instance.transform.position + ___rigidBodyMovement;
             }
 
-
+            /* update last position variables */
             __instance.lastHeadPosition = __instance.headCollider.transform.position;
+            ___areBothTouching = (!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching);
 
+            // update left hand
+            // variables passed to the function
+            funcParems = new object[] { __instance.leftHandTransform,
+                                        __instance.leftHandOffset,
+                                        ___lastLeftHandPosition,
+                                        ___areBothTouching,
+                                        ___leftHandColliding,
+                                        ___leftHandColliding,
+                                        __instance.leftHandSlide,
+                                        __instance.leftHandSlide,
+                                        __instance.leftHandMaterialTouchIndex,
+                                        __instance.leftHandMaterialTouchIndex,
+                                        __instance.leftHandSurfaceOverride,
+                                        __instance.leftHandSurfaceOverride };
 
-            // calclulate left hand movement again
-            leftHandPosition = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
-            ___distanceTraveled = leftHandPosition - ___lastLeftHandPosition;
+            // run GorillaLocomotion.Player.FinalHandPosition(...)
+            ___lastLeftHandPosition = (Vector3)FinalHandPosition.Invoke(__instance, funcParems);
 
-            // left hand collision check again
-            itCollideParems = new object[] { ___lastLeftHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null, null, null };
-            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
-            ___finalPosition = (Vector3)itCollideParems[4];
-            ___slipPercentage = (float)itCollideParems[6];
-            ___junkNormal = (Vector3)itCollideParems[7];
-            ___junkHit = (RaycastHit)itCollideParems[8];
+            // asign the out values
+            ___leftHandColliding = (bool)funcParems[5];
+            __instance.leftHandSlide = (bool)funcParems[7];
+            __instance.leftHandMaterialTouchIndex = (int)funcParems[9];
+            __instance.leftHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
 
-            if (itCollideResult) {
-                ___lastLeftHandPosition = ___finalPosition;
-                ___leftHandColliding = true;
-                __instance.leftHandMaterialTouchIndex = __instance.currentMaterialIndex;
-                __instance.leftHandSurfaceOverride = __instance.currentOverride;
+            // update right hand
+            // variables passed to the function
+            funcParems = new object[] { __instance.rightHandTransform,
+                                        __instance.rightHandOffset,
+                                        ___lastRightHandPosition,
+                                        ___areBothTouching,
+                                        ___rightHandColliding,
+                                        ___rightHandColliding,
+                                        __instance.rightHandSlide,
+                                        __instance.rightHandSlide,
+                                        __instance.rightHandMaterialTouchIndex,
+                                        __instance.rightHandMaterialTouchIndex,
+                                        __instance.rightHandSurfaceOverride,
+                                        __instance.rightHandSurfaceOverride };
 
-            } else {
-                ___lastLeftHandPosition = leftHandPosition;
-            }
+            // run GorillaLocomotion.Player.FinalHandPosition(...)
+            ___lastRightHandPosition = (Vector3)FinalHandPosition.Invoke(__instance, funcParems);
 
-            //calculate right hand movement again
-            rightHandPosition = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
-            ___distanceTraveled = rightHandPosition - ___lastRightHandPosition;
-
-            // right hand collision check again
-            itCollideParems = new object[] { ___lastRightHandPosition, __instance.minimumRaycastDistance, ___distanceTraveled, __instance.defaultPrecision, null, ((!___leftHandColliding && !__instance.wasLeftHandTouching) || (!___rightHandColliding && !__instance.wasRightHandTouching)), null, null, null };
-            itCollideResult = (bool)IterativeCollisionSphereCast.Invoke(__instance, itCollideParems);
-            ___finalPosition = (Vector3)itCollideParems[4];
-            ___slipPercentage = (float)itCollideParems[6];
-            ___junkNormal = (Vector3)itCollideParems[7];
-            ___junkHit = (RaycastHit)itCollideParems[8];
-
-            if (itCollideResult) {
-                ___lastRightHandPosition = ___finalPosition;
-                ___rightHandColliding = true;
-                __instance.rightHandMaterialTouchIndex = __instance.currentMaterialIndex;
-                __instance.rightHandSurfaceOverride = __instance.currentOverride;
-
-            } else {
-                ___lastRightHandPosition = rightHandPosition;
-            }
+            // asign the out values
+            ___rightHandColliding = (bool)funcParems[5];
+            __instance.rightHandSlide = (bool)funcParems[7];
+            __instance.rightHandMaterialTouchIndex = (int)funcParems[9];
+            __instance.rightHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
 
             StoreVelocities.Invoke(__instance, null);
+            __instance.didAJump = false;
 
-            if ((__instance.rightHandSlide || __instance.leftHandSlide) && __instance.leftHandSlide == ___leftHandColliding && __instance.rightHandSlide == ___rightHandColliding) {
-                if (__instance.rightHandSlide && __instance.leftHandSlide) {
-                    ___slideAverageNormal = (__instance.rightHandSlideNormal + __instance.leftHandSlideNormal) / 2f;
+            /* slide stuff?? */
+            if (__instance.leftHandSlide || __instance.rightHandSlide) {
+                ___slideAverage = Vector3.zero;
+                ___touchPoints = 0;
+                ___averageSlipPercentage = 0f;
 
-                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
-                        Vector3 rightProjected = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.rightHandSlideNormal) * (1f - (1f - __instance.rightHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
-                        Vector3 leftProjected = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.leftHandSlideNormal) * (1f - (1f - __instance.leftHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
+                if (__instance.leftHandSlide) {
+                    ___slideAverageNormal += __instance.leftHandSlideNormal.normalized;
+                    ___averageSlipPercentage += __instance.leftHandSlipPercentage;
+                    ++___touchPoints;
+                }
 
-                        ___slideAverage = rightProjected + leftProjected / 2f;
+                if (__instance.rightHandSlide) {
+                    ___slideAverageNormal += __instance.rightHandSlideNormal.normalized;
+                    ___averageSlipPercentage += __instance.rightHandSlipPercentage;
+                    ++___touchPoints;
+                }
+
+                ___slideAverageNormal = ___slideAverageNormal.normalized;
+                ___averageSlipPercentage /= ___touchPoints;
+
+                if (___touchPoints == 1) {
+                    ___surfaceDirection = __instance.rightHandSlide ? Vector3.ProjectOnPlane(__instance.rightHandTransform.forward, __instance.rightHandSlideNormal) : Vector3.ProjectOnPlane(__instance.leftHandTransform.forward, __instance.leftHandSlideNormal);
+
+                    if (Vector3.Dot(___slideAverage, ___surfaceDirection) > 0f) {
+                        ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, ___surfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
 
                     } else {
-                        ___slideAverage = ___playerRigidBody.velocity;
+                        ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, -___surfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
                     }
+                }
 
-                } else if (__instance.rightHandSlide) {
-                    ___slideAverageNormal = __instance.rightHandSlideNormal;
+                if (!__instance.wasLeftHandSlide && !__instance.wasRightHandSlide) {
+                    ___slideAverage = (Vector3.Dot(___playerRigidBody.velocity, ___slideAverageNormal) <= 0f) ? Vector3.ProjectOnPlane(___playerRigidBody.velocity, ___slideAverageNormal) : ___playerRigidBody.velocity;
 
-                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
-                        ___slideAverage = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.rightHandSlideNormal) * (1f - (1f - __instance.rightHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
-                        ___rightHandSurfaceDirection = Vector3.ProjectOnPlane(__instance.rightHandTransform.forward, __instance.rightHandSlideNormal);
+                } else {
+                    ___slideAverage = (Vector3.Dot(___slideAverage, ___slideAverageNormal) <= 0f) ? Vector3.ProjectOnPlane(___slideAverage, ___slideAverageNormal) : ___slideAverage;
+                }
 
-                        if (Vector3.Dot(___slideAverage, ___rightHandSurfaceDirection) > 0f) {
-                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, ___rightHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
-
-						} else {
-                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, -___rightHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
-						}
-                    
-                    } else {
-                        ___slideAverage = ___playerRigidBody.velocity;
-					}
-                
-                } else if (__instance.leftHandSlide) {
-                    ___slideAverageNormal = __instance.leftHandSlideNormal;
-
-                    if (Vector3.Dot(___slideAverageNormal, ___playerRigidBody.velocity) < 0f) {
-                        ___slideAverage = Vector3.ProjectOnPlane(___playerRigidBody.velocity, __instance.leftHandSlideNormal) * (1f - (1f - __instance.leftHandSlipPercentage) * __instance.frictionConstant * ___calcDeltaTime);
-                        ___leftHandSurfaceDirection = Vector3.ProjectOnPlane(__instance.leftHandTransform.forward, __instance.leftHandSlideNormal);
-
-                        if (Vector3.Dot(___slideAverage, ___leftHandSurfaceDirection) > 0f) {
-                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, ___leftHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
-
-						} else {
-                            ___slideAverage = Vector3.Project(___slideAverage, Vector3.Slerp(___slideAverage, -___leftHandSurfaceDirection.normalized * ___slideAverage.magnitude, __instance.slideControl));
-						}
-                   
-                    } else {
-                        ___slideAverage = ___playerRigidBody.velocity;
-					}
-				}
-
-                if((__instance.wasLeftHandSlide || __instance.wasRightHandSlide) && ___playerRigidBody.velocity.magnitude > ___slideAverage.magnitude) {
-                    ___slideAverage = ___slideAverage.normalized * (___playerRigidBody.velocity.magnitude - (___playerRigidBody.velocity.magnitude - ___slideAverage.magnitude) / 2f);
-				}
-
+                ___slideAverage = ___slideAverage.normalized * Mathf.Min(___slideAverage.magnitude, Mathf.Max(0.5f, ___denormalizedVelocityAverage.magnitude * 2f));
                 ___playerRigidBody.velocity = Vector3.zero;
-            
+
             } else if (___leftHandColliding || ___rightHandColliding) {
-                ___playerRigidBody.velocity = Vector3.zero;
-			}
+                if (!__instance.didATurn) {
+                    ___playerRigidBody.velocity = Vector3.zero;
+
+                } else {
+                    ___playerRigidBody.velocity = ___playerRigidBody.velocity.normalized * Mathf.Min(2f, ___playerRigidBody.velocity.magnitude);
+                }
+
+            } else if (__instance.wasLeftHandSlide || __instance.wasRightHandSlide) {
+                ___playerRigidBody.velocity = (Vector3.Dot(___slideAverage, ___slideAverageNormal) <= 0f) ? Vector3.ProjectOnPlane(___slideAverage, ___slideAverageNormal) : ___slideAverage;
+            }
 
             if ((___rightHandColliding || ___leftHandColliding) && !__instance.disableMovement && !__instance.didATurn) {
-                if (__instance.rightHandSlide || (__instance.leftHandSlide && __instance.leftHandSlide == ___leftHandColliding && __instance.rightHandSlide == ___rightHandColliding)) {
-                    if ((___denormalizedVelocityAverage - ___slideAverage).magnitude > __instance.slideVelocityLimit && Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) > 0f && ___denormalizedVelocityAverage.magnitude > ___slideAverage.magnitude) {
+                if (__instance.rightHandSlide || __instance.leftHandSlide) { 
+                    if (Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude > __instance.slideVelocityLimit 
+                        && Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) > 0f 
+                        && Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude > Vector3.Project(___slideAverage, ___slideAverageNormal).magnitude) 
+                    {
+                        Debug.Log("MonkeSwim did a sliding jump");
                         __instance.leftHandSlide = false;
                         __instance.rightHandSlide = false;
-
-                        if ((___denormalizedVelocityAverage - ___slideAverage).magnitude > __instance.maxJumpSpeed) {
-                            ___playerRigidBody.velocity = (___denormalizedVelocityAverage - ___slideAverage).normalized * __instance.maxJumpSpeed + Vector3.ProjectOnPlane(___slideAverage, ___slideAverageNormal);
-
-						} else {
-                            ___playerRigidBody.velocity = Vector3.ProjectOnPlane(___denormalizedVelocityAverage, ___slideAverageNormal) + Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).normalized * Mathf.Min(__instance.maxJumpSpeed, Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude);
-						}
+                        __instance.didAJump = true;
+                        ___playerRigidBody.velocity = Mathf.Min(__instance.maxJumpSpeed, __instance.jumpMultiplier * Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude) * ___slideAverageNormal.normalized + Vector3.ProjectOnPlane(___slideAverage, ___slideAverageNormal);
 					}
-				
+                
                 } else if (___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
-                    if (___denormalizedVelocityAverage.magnitude * __instance.jumpMultiplier > __instance.maxJumpSpeed) {
-                        ___playerRigidBody.velocity = ___denormalizedVelocityAverage.normalized * __instance.maxJumpSpeed;
-
-					} else {
-                        ___playerRigidBody.velocity = __instance.jumpMultiplier * ___denormalizedVelocityAverage;
-					}
+                    Debug.Log("MonkeSwim did a regular jump");
+                    __instance.didAJump = true;
+                    ___playerRigidBody.velocity = Mathf.Min(__instance.maxJumpSpeed, __instance.jumpMultiplier * ___denormalizedVelocityAverage.magnitude) * ___denormalizedVelocityAverage.normalized;
 				}
 			}
 
-            if (___leftHandColliding && (leftHandPosition - ___lastLeftHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
-                                                                                                                                                   __instance.minimumRaycastDistance * __instance.defaultPrecision,
-                                                                                                                                                   leftHandPosition - __instance.headCollider.transform.position,
-                                                                                                                                                   out ___hitInfo,
-                                                                                                                                                   (leftHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                                                   __instance.locomotionEnabledLayers)) {
-                ___lastLeftHandPosition = leftHandPosition;
-                ___leftHandColliding = false;
-			}
+            Vector3 currentHandPos;
 
-            if (___rightHandColliding && (rightHandPosition - ___lastRightHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
-                                                                                                                                                      __instance.minimumRaycastDistance * __instance.defaultPrecision,
-                                                                                                                                                      rightHandPosition - __instance.headCollider.transform.position,
-                                                                                                                                                      out ___hitInfo,
-                                                                                                                                                      (rightHandPosition - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance,
-                                                                                                                                                      __instance.locomotionEnabledLayers)) {
-                ___lastRightHandPosition = rightHandPosition;
-                ___rightHandColliding = false;
+            // store left hand postiion
+            if (___leftHandColliding) {
+                currentHandPos = (Vector3)CurrentLeftHandPosition.Invoke(__instance, null);
+                
+                if((currentHandPos - ___lastLeftHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position, 
+                                                                                                                            __instance.minimumRaycastDistance * __instance.defaultPrecision, 
+                                                                                                                            currentHandPos - __instance.headCollider.transform.position, 
+                                                                                                                            out ___hitInfo, 
+                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, __instance.locomotionEnabledLayers.value)) 
+                {
+                    ___lastLeftHandPosition = currentHandPos;
+                    ___leftHandColliding = false;
+				}
+            }
+
+            // store right hand position
+            if (___rightHandColliding) {
+                currentHandPos = (Vector3)CurrentRightHandPosition.Invoke(__instance, null);
+
+                if ((currentHandPos - ___lastRightHandPosition).magnitude > __instance.unStickDistance && !Physics.SphereCast(__instance.headCollider.transform.position,
+                                                                                                                            __instance.minimumRaycastDistance * __instance.defaultPrecision,
+                                                                                                                            currentHandPos - __instance.headCollider.transform.position,
+                                                                                                                            out ___hitInfo,
+                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, __instance.locomotionEnabledLayers.value)) {
+                    ___lastRightHandPosition = currentHandPos;
+                    ___rightHandColliding = false;
+                }
             }
 
             __instance.leftHandFollower.position = ___lastLeftHandPosition;
@@ -510,6 +489,8 @@ namespace MonkeSwim.Patch
             __instance.wasRightHandTouching = ___rightHandColliding;
             __instance.wasLeftHandSlide = __instance.leftHandSlide;
             __instance.wasRightHandSlide = __instance.rightHandSlide;
+            __instance.didATurn = false;
+            __instance.BodyCollider();
 
             return false;
         }
