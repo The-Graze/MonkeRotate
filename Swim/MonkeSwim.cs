@@ -9,7 +9,9 @@ namespace MonkeSwim
         private void Awake()
         {
             Patch.RotationPatch.Init();
-            Patch.CineMachinePatch.Init();           
+            Patch.CineMachinePatch.Init();
+            Patch.MonkeSwimPatch.ApplyPatch();
+            Patch.RotationPatch.ModEnabled = true;
         }
     }
 }

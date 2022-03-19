@@ -95,6 +95,7 @@ namespace MonkeSwim.Patch
                                                                                                                                 typeof(Vector3),
                                                                                                                                 typeof(Vector3),
                                                                                                                                 typeof(bool),
+                                                                                                                                typeof(bool),
                                                                                                                                 typeof(bool).MakeByRefType(),
                                                                                                                                 typeof(Vector3).MakeByRefType(),
                                                                                                                                 typeof(float).MakeByRefType(),
@@ -148,6 +149,7 @@ namespace MonkeSwim.Patch
                                                                                       ref Vector3 ___rigidBodyMovement, 
                                                                                       ref Vector3 ___firstIterationLeftHand,
                                                                                       ref Vector3 ___firstIterationRightHand,
+                                                                                      ref Vector3 ___firstIterationHead,
                                                                                       ref Vector3 ___lastLeftHandPosition,
                                                                                       ref Vector3 ___lastRightHandPosition,
                                                                                       ref Vector3 ___finalPosition,
@@ -172,11 +174,12 @@ namespace MonkeSwim.Patch
             ___rigidBodyMovement = Vector3.zero;
             ___firstIterationLeftHand = Vector3.zero;
             ___firstIterationRightHand = Vector3.zero;
+            ___firstIterationHead = Vector3.zero;
 
-            __instance.rightHandSlideNormal = __instance.turnParent.transform.up;
-            __instance.leftHandSlideNormal = __instance.turnParent.transform.up;
+            __instance.rightHandSlideNormal = Vector3.up;
+            __instance.leftHandSlideNormal = Vector3.up;
 
-            Vector3 downDir = __instance.transform.up * -1f;
+            Vector3 downDir = Vector3.down; // __instance.turnParent.transform.up * -1f;
 
 			if (__instance.debugMovement) {
                 ___tempRealTime = Time.time;
@@ -194,7 +197,7 @@ namespace MonkeSwim.Patch
 
             if (!__instance.didAJump) {
                 if (__instance.wasLeftHandTouching || __instance.wasRightHandTouching) {
-                    __instance.transform.position = __instance.transform.position + 4.95f * downDir * ___calcDeltaTime * ___calcDeltaTime;
+                    __instance.transform.position = __instance.transform.position + 4.9f * downDir * ___calcDeltaTime * ___calcDeltaTime;
 
                     if (Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) <= 0f && Vector3.Dot(downDir, ___slideAverageNormal) <= 0f) {
                         __instance.transform.position = __instance.transform.position - Vector3.Project(Mathf.Min(__instance.stickDepth, Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude * ___calcDeltaTime) * ___slideAverageNormal, downDir);
@@ -211,47 +214,61 @@ namespace MonkeSwim.Patch
 
             /* first iteration left hand */
             // variables passed to the functions
-            funcParems = new object[] { __instance.leftHandTransform,           __instance.leftHandOffset, 
-                                        ___lastLeftHandPosition,                __instance.wasLeftHandSlide, 
-                                        __instance.wasLeftHandTouching,         ___firstIterationLeftHand,
-                                        __instance.leftHandSlipPercentage,      __instance.leftHandSlide,
-                                        __instance.leftHandSlideNormal,         ___leftHandColliding,
-                                        __instance.leftHandMaterialTouchIndex,  __instance.leftHandSurfaceOverride };
+            funcParems = new object[] { __instance.leftHandTransform,
+                                        __instance.leftHandOffset,
+                                        ___lastLeftHandPosition,
+                                        __instance.wasLeftHandSlide,
+                                        __instance.wasLeftHandTouching,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null };
 
             // run GorillaLocomotion.Player.FirstHandIteration(...)
             FirstHandIteration.Invoke(__instance, funcParems);
 
             // assign the out values 
-            __instance.wasLeftHandTouching  = (bool)funcParems[4];
-            ___firstIterationLeftHand = (Vector3)funcParems[5];
-            __instance.leftHandSlipPercentage = (float)funcParems[6];
-            __instance.leftHandSlide = (bool)funcParems[7];
-            __instance.leftHandSlideNormal = (Vector3)funcParems[8];
-            ___leftHandColliding = (bool)funcParems[9];
-            __instance.leftHandMaterialTouchIndex = (int)funcParems[10];
-            __instance.leftHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
+            __instance.wasLeftHandTouching  = (bool)funcParems[5];
+            ___firstIterationLeftHand = (Vector3)funcParems[6];
+            __instance.leftHandSlipPercentage = (float)funcParems[7];
+            __instance.leftHandSlide = (bool)funcParems[8];
+            __instance.leftHandSlideNormal = (Vector3)funcParems[9];
+            ___leftHandColliding = (bool)funcParems[10];
+            __instance.leftHandMaterialTouchIndex = (int)funcParems[11];
+            __instance.leftHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[12];
 
             /* first iteration right hand */
             // variables passed to the function
-            funcParems = new object[] { __instance.rightHandTransform,           __instance.rightHandOffset,
-                                        ___lastRightHandPosition,                __instance.wasRightHandSlide,
-                                        __instance.wasRightHandTouching,         ___firstIterationRightHand,
-                                        __instance.rightHandSlipPercentage,      __instance.rightHandSlide,
-                                        __instance.rightHandSlideNormal,         ___rightHandColliding,
-                                        __instance.rightHandMaterialTouchIndex,  __instance.rightHandSurfaceOverride };
+            funcParems = new object[] { __instance.rightHandTransform,
+                                        __instance.rightHandOffset,
+                                        ___lastRightHandPosition,
+                                        __instance.wasRightHandSlide,
+                                        __instance.wasRightHandTouching,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null,
+                                        null };
 
             // run GorillaLocomotion.Player.FirstHandIteration(...)
             FirstHandIteration.Invoke(__instance, funcParems);
 
             // assign the out values
-            __instance.wasRightHandTouching = (bool)funcParems[4];
-            ___firstIterationRightHand = (Vector3)funcParems[5];
-            __instance.rightHandSlipPercentage = (float)funcParems[6];
-            __instance.rightHandSlide = (bool)funcParems[7];
-            __instance.rightHandSlideNormal = (Vector3)funcParems[8];
-            ___rightHandColliding = (bool)funcParems[9];
-            __instance.rightHandMaterialTouchIndex = (int)funcParems[10];
-            __instance.rightHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[11];
+            __instance.wasRightHandTouching = (bool)funcParems[5];
+            ___firstIterationRightHand = (Vector3)funcParems[6];
+            __instance.rightHandSlipPercentage = (float)funcParems[7];
+            __instance.rightHandSlide = (bool)funcParems[8];
+            __instance.rightHandSlideNormal = (Vector3)funcParems[9];
+            ___rightHandColliding = (bool)funcParems[10];
+            __instance.rightHandMaterialTouchIndex = (int)funcParems[11];
+            __instance.rightHandSurfaceOverride = (GorillaSurfaceOverride)funcParems[12];
 
             /* calculate player movement vector */
             ___touchPoints = 0;
@@ -260,13 +277,13 @@ namespace MonkeSwim.Patch
             // add left hand position change
             if (___leftHandColliding || __instance.wasLeftHandTouching) {
                 ___rigidBodyMovement += ___firstIterationLeftHand;
-                ++___touchPoints;
+                ___touchPoints++;
 			}
 
             // add right hand position change
             if (___rightHandColliding || __instance.wasRightHandTouching) {
-                ___rigidBodyMovement += ___firstIterationLeftHand;
-                ++___touchPoints;
+                ___rigidBodyMovement += ___firstIterationRightHand;
+                ___touchPoints++;
             }
 
             if (___touchPoints != 0)
@@ -277,10 +294,10 @@ namespace MonkeSwim.Patch
             funcParems = new object[] { __instance.lastHeadPosition,
                                         __instance.headCollider.radius * 0.9f,
                                         __instance.headCollider.transform.position + ___rigidBodyMovement - __instance.lastHeadPosition,
-                                        ___finalPosition,
+                                        null,
                                         false,
-                                        ___slipPercentage,
-                                        ___junkHit,
+                                        null,
+                                        null,
                                         true };
 
             // store the function result
@@ -327,13 +344,13 @@ namespace MonkeSwim.Patch
                                         ___lastLeftHandPosition,
                                         ___areBothTouching,
                                         ___leftHandColliding,
-                                        ___leftHandColliding,
+                                        null,
                                         __instance.leftHandSlide,
-                                        __instance.leftHandSlide,
+                                        null,
                                         __instance.leftHandMaterialTouchIndex,
-                                        __instance.leftHandMaterialTouchIndex,
+                                        null,
                                         __instance.leftHandSurfaceOverride,
-                                        __instance.leftHandSurfaceOverride };
+                                        null };
 
             // run GorillaLocomotion.Player.FinalHandPosition(...)
             ___lastLeftHandPosition = (Vector3)FinalHandPosition.Invoke(__instance, funcParems);
@@ -351,13 +368,13 @@ namespace MonkeSwim.Patch
                                         ___lastRightHandPosition,
                                         ___areBothTouching,
                                         ___rightHandColliding,
-                                        ___rightHandColliding,
+                                        null,
                                         __instance.rightHandSlide,
-                                        __instance.rightHandSlide,
+                                        null,
                                         __instance.rightHandMaterialTouchIndex,
-                                        __instance.rightHandMaterialTouchIndex,
+                                        null,
                                         __instance.rightHandSurfaceOverride,
-                                        __instance.rightHandSurfaceOverride };
+                                        null };
 
             // run GorillaLocomotion.Player.FinalHandPosition(...)
             ___lastRightHandPosition = (Vector3)FinalHandPosition.Invoke(__instance, funcParems);
@@ -373,20 +390,20 @@ namespace MonkeSwim.Patch
 
             /* slide stuff?? */
             if (__instance.leftHandSlide || __instance.rightHandSlide) {
-                ___slideAverage = Vector3.zero;
+                ___slideAverageNormal = Vector3.zero;
                 ___touchPoints = 0;
                 ___averageSlipPercentage = 0f;
 
                 if (__instance.leftHandSlide) {
                     ___slideAverageNormal += __instance.leftHandSlideNormal.normalized;
                     ___averageSlipPercentage += __instance.leftHandSlipPercentage;
-                    ++___touchPoints;
+                    ___touchPoints++;
                 }
 
                 if (__instance.rightHandSlide) {
                     ___slideAverageNormal += __instance.rightHandSlideNormal.normalized;
                     ___averageSlipPercentage += __instance.rightHandSlipPercentage;
-                    ++___touchPoints;
+                    ___touchPoints++;
                 }
 
                 ___slideAverageNormal = ___slideAverageNormal.normalized;
@@ -431,7 +448,7 @@ namespace MonkeSwim.Patch
                         && Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) > 0f 
                         && Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude > Vector3.Project(___slideAverage, ___slideAverageNormal).magnitude) 
                     {
-                        Debug.Log("MonkeSwim did a sliding jump");
+                        Debug.Log("monkeswim did a sliding jump");
                         __instance.leftHandSlide = false;
                         __instance.rightHandSlide = false;
                         __instance.didAJump = true;
@@ -439,7 +456,7 @@ namespace MonkeSwim.Patch
 					}
                 
                 } else if (___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
-                    Debug.Log("MonkeSwim did a regular jump");
+                    Debug.Log("monkeswim did a normal jump");
                     __instance.didAJump = true;
                     ___playerRigidBody.velocity = Mathf.Min(__instance.maxJumpSpeed, __instance.jumpMultiplier * ___denormalizedVelocityAverage.magnitude) * ___denormalizedVelocityAverage.normalized;
 				}
@@ -455,7 +472,8 @@ namespace MonkeSwim.Patch
                                                                                                                             __instance.minimumRaycastDistance * __instance.defaultPrecision, 
                                                                                                                             currentHandPos - __instance.headCollider.transform.position, 
                                                                                                                             out ___hitInfo, 
-                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, __instance.locomotionEnabledLayers.value)) 
+                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, 
+                                                                                                                            __instance.locomotionEnabledLayers.value)) 
                 {
                     ___lastLeftHandPosition = currentHandPos;
                     ___leftHandColliding = false;
@@ -470,7 +488,8 @@ namespace MonkeSwim.Patch
                                                                                                                             __instance.minimumRaycastDistance * __instance.defaultPrecision,
                                                                                                                             currentHandPos - __instance.headCollider.transform.position,
                                                                                                                             out ___hitInfo,
-                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, __instance.locomotionEnabledLayers.value)) {
+                                                                                                                            (currentHandPos - __instance.headCollider.transform.position).magnitude - __instance.minimumRaycastDistance, 
+                                                                                                                            __instance.locomotionEnabledLayers.value)) {
                     ___lastRightHandPosition = currentHandPos;
                     ___rightHandColliding = false;
                 }
@@ -488,8 +507,8 @@ namespace MonkeSwim.Patch
             return false;
         }
 
-        [HarmonyPatch(typeof(GorillaLocomotion.Player))]
-        [HarmonyPrefix, HarmonyPatch("BodyCollider", MethodType.Normal)]
+        // [HarmonyPatch(typeof(GorillaLocomotion.Player))]
+        // [HarmonyPrefix, HarmonyPatch("BodyCollider", MethodType.Normal)]
         internal static bool Prefix_PlayerBodyCollider(GorillaLocomotion.Player __instance, ref float ___bodyMaxRadius,
                                                                                             ref float ___bodyInitialHeight,
                                                                                             ref float ___bodyInitialRadius,
@@ -499,7 +518,7 @@ namespace MonkeSwim.Patch
             if (!modEnabled)
                 return true;
 
-            Vector3 downDir = __instance.transform.up * -1f;
+            Vector3 downDir = Vector3.down; // __instance.turnParent.transform.up * -1f;
             object[] funcParems = new object[] { __instance.headCollider.transform, __instance.bodyOffset };
             Vector3 positionOffset = (Vector3)PositionWithOffset.Invoke(__instance, funcParems);
 
@@ -753,7 +772,7 @@ namespace MonkeSwim.Patch
 
         private static void SavePlayerRotation(GorillaLocomotion.Player playerInstance)
         {
-            Transform playerTransform = playerInstance.transform;
+            Transform playerTransform = playerInstance.turnParent.transform;
             if (playerTransform == null) return;
 
             //save the players rotation on the global Vector3.up axis
@@ -762,7 +781,7 @@ namespace MonkeSwim.Patch
             //save the player up rotation in global space
             playerUpRotation = Quaternion.FromToRotation(Vector3.up, playerTransform.up);
 
-            float cameraY = (Quaternion.Inverse(playerInstance.turnParent.transform.rotation) * playerInstance.headCollider.transform.rotation).eulerAngles.y;
+            float cameraY = (Quaternion.Inverse(playerTransform.rotation) * playerInstance.headCollider.transform.rotation).eulerAngles.y;
             bodyLockedRotation = Quaternion.Euler(0f, cameraY, 0f);
             bodyRotation = playerTransform.rotation * bodyLockedRotation;
         }

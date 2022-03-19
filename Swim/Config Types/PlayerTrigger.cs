@@ -11,6 +11,7 @@ namespace MonkeSwim.Config
         private void OnTriggerEnter(Collider collider)
         {
             if (!playerCollided && collider.name.Equals("Body Collider")) {
+                Debug.Log("player entered call");
                 playerCollider = collider;
                 PlayerEnter();
             }
@@ -19,6 +20,7 @@ namespace MonkeSwim.Config
        private void OnTriggerExit(Collider collider)
         {
             if (playerCollided && collider == playerCollider) {
+                Debug.Log("player exit called");
                 PlayerExit();
             }
         }
