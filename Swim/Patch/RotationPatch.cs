@@ -176,10 +176,10 @@ namespace MonkeSwim.Patch
             ___firstIterationRightHand = Vector3.zero;
             ___firstIterationHead = Vector3.zero;
 
-            __instance.rightHandSlideNormal = Vector3.up;
-            __instance.leftHandSlideNormal = Vector3.up;
+            __instance.rightHandSlideNormal = __instance.turnParent.transform.up;
+            __instance.leftHandSlideNormal = __instance.turnParent.transform.up;
 
-            Vector3 downDir = Vector3.down; // __instance.turnParent.transform.up * -1f;
+            Vector3 downDir = __instance.turnParent.transform.up * -1f;
 
 			if (__instance.debugMovement) {
                 ___tempRealTime = Time.time;
@@ -188,7 +188,7 @@ namespace MonkeSwim.Patch
 
 			} else {
                 ___tempRealTime = Time.realtimeSinceStartup;
-                ___calcDeltaTime = ___tempRealTime = ___lastRealTime;
+                ___calcDeltaTime = ___tempRealTime - ___lastRealTime;
                 ___lastRealTime = ___tempRealTime;
 
                 if(___calcDeltaTime > 0.1f)
@@ -448,7 +448,7 @@ namespace MonkeSwim.Patch
                         && Vector3.Dot(___denormalizedVelocityAverage, ___slideAverageNormal) > 0f 
                         && Vector3.Project(___denormalizedVelocityAverage, ___slideAverageNormal).magnitude > Vector3.Project(___slideAverage, ___slideAverageNormal).magnitude) 
                     {
-                        Debug.Log("monkeswim did a sliding jump");
+                        // Debug.Log("monkeswim did a sliding jump");
                         __instance.leftHandSlide = false;
                         __instance.rightHandSlide = false;
                         __instance.didAJump = true;
@@ -456,7 +456,7 @@ namespace MonkeSwim.Patch
 					}
                 
                 } else if (___denormalizedVelocityAverage.magnitude > __instance.velocityLimit) {
-                    Debug.Log("monkeswim did a normal jump");
+                    // Debug.Log($"monkeswim did a normal jump --- maxjumpseed: {__instance.maxJumpSpeed} --- jumpMultiplier: {__instance.jumpMultiplier} --- dnmvaveramagnitude: {___denormalizedVelocityAverage.magnitude}");
                     __instance.didAJump = true;
                     ___playerRigidBody.velocity = Mathf.Min(__instance.maxJumpSpeed, __instance.jumpMultiplier * ___denormalizedVelocityAverage.magnitude) * ___denormalizedVelocityAverage.normalized;
 				}
@@ -507,8 +507,8 @@ namespace MonkeSwim.Patch
             return false;
         }
 
-        // [HarmonyPatch(typeof(GorillaLocomotion.Player))]
-        // [HarmonyPrefix, HarmonyPatch("BodyCollider", MethodType.Normal)]
+        [HarmonyPatch(typeof(GorillaLocomotion.Player))]
+        [HarmonyPrefix, HarmonyPatch("BodyCollider", MethodType.Normal)]
         internal static bool Prefix_PlayerBodyCollider(GorillaLocomotion.Player __instance, ref float ___bodyMaxRadius,
                                                                                             ref float ___bodyInitialHeight,
                                                                                             ref float ___bodyInitialRadius,
@@ -518,7 +518,7 @@ namespace MonkeSwim.Patch
             if (!modEnabled)
                 return true;
 
-            Vector3 downDir = Vector3.down; // __instance.turnParent.transform.up * -1f;
+            Vector3 downDir = __instance.turnParent.transform.up * -1f;
             object[] funcParems = new object[] { __instance.headCollider.transform, __instance.bodyOffset };
             Vector3 positionOffset = (Vector3)PositionWithOffset.Invoke(__instance, funcParems);
 

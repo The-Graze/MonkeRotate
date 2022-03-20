@@ -104,7 +104,7 @@ namespace MonkeSwim.Config
 
         private void OnTriggerStay(Collider collider)
         {
-            if (!playerCollided || playerCollider != collider) return;
+            if (!isPlayerCollided || playerCollider != collider) return;
             // Debug.Log("GravityZone: OnTriggerStay");
             UpdatedGravity();
         }

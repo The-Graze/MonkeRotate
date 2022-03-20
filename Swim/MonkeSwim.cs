@@ -10,8 +10,8 @@ namespace MonkeSwim
         {
             Patch.RotationPatch.Init();
             Patch.CineMachinePatch.Init();
-            Patch.MonkeSwimPatch.ApplyPatch();
-            Patch.RotationPatch.ModEnabled = true;
+            // Patch.MonkeSwimPatch.ApplyPatch();
+            // Patch.RotationPatch.ModEnabled = true;
         }
     }
 }

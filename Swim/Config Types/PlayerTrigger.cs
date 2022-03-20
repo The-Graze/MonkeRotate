@@ -5,13 +5,13 @@ namespace MonkeSwim.Config
     public abstract class PlayerTrigger : MonoBehaviour
     {
 #if GAME
-        protected bool playerCollided = false;
+        protected bool isPlayerCollided = false;
         protected Collider playerCollider = null;
 
         private void OnTriggerEnter(Collider collider)
         {
-            if (!playerCollided && collider.name.Equals("Body Collider")) {
-                Debug.Log("player entered call");
+            if (!isPlayerCollided && collider.name.Equals("Body Collider")) {
+                // Debug.Log("player entered call");
                 playerCollider = collider;
                 PlayerEnter();
             }
@@ -19,21 +19,21 @@ namespace MonkeSwim.Config
 
        private void OnTriggerExit(Collider collider)
         {
-            if (playerCollided && collider == playerCollider) {
-                Debug.Log("player exit called");
+            if (isPlayerCollided && collider == playerCollider) {
+                // Debug.Log("player exit called");
                 PlayerExit();
             }
         }
 
         protected virtual void PlayerEnter()
         {
-            playerCollided = true;
+            isPlayerCollided = true;
         }
 
         protected virtual void PlayerExit()
         {
             playerCollider = null;
-            playerCollided = false;         
+            isPlayerCollided = false;         
         }
 #endif
     }

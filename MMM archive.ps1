@@ -1,7 +1,7 @@
 # Needs to be at least that version, or mmm can't read the archive
 #Requires -Modules @{ ModuleName="Microsoft.PowerShell.Archive"; ModuleVersion="1.2.3" }
 $Name = "MonkeSwim" # Replace with your mods name
-$Version = "v1.0.6"
+$Version = "v1.0.7"
 
 mkdir BepInEx\plugins\$Name
 mkdir BepInEx\plugins\MonkeMapLoader\CustomMaps

@@ -102,7 +102,7 @@ namespace MonkeSwim.Managers
                 return;
 
             // store position before rotation
-            // Vector3 lastPos = player.transform.position;
+            Vector3 lastPos = player.transform.position;
             // Vector3 lastLeftPos = playerInstance.leftHandTransform.position;
             // Vector3 lastRightPos = playerInstance.rightHandTransform.position;
             Vector3 lastHeadPos = playerInstance.headCollider.transform.position;
@@ -121,7 +121,7 @@ namespace MonkeSwim.Managers
            player.transform.rotation = rotation;
 
             // calculate position change offsets after rotation
-            // Vector3 lastPosOffset = player.transform.position - lastPos;
+            Vector3 lastPosOffset = player.transform.position - lastPos;
             // Vector3 lastLeftPosOffset = playerInstance.leftHandTransform.position - lastLeftPos;
             // Vector3 lastRightPosOffset = playerInstance.rightHandTransform.position - lastRightPos;
             Vector3 lastHeadPosOFfset = playerInstance.headCollider.transform.position - lastHeadPos;
@@ -132,7 +132,7 @@ namespace MonkeSwim.Managers
             GorillaLocomotion.Player.Instance.lastHeadPosition += lastHeadPosOFfset;
 
             tempVec = (Vector3)lastPlayerPosition.GetValue(playerInstance);
-            // lastPlayerPosition.SetValue(playerInstance, tempVec + lastPosOffset);
+            lastPlayerPosition.SetValue(playerInstance, tempVec + lastPosOffset);
 
             // tempVec = (Vector3)lastRightHandPosition.GetValue(playerInstance);
             // lastRightHandPosition.SetValue(playerInstance, tempVec + lastRightPosOffset);
