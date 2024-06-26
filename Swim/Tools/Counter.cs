@@ -1,4 +1,4 @@
-﻿namespace MonkeSwim.Tools
+﻿namespace MonkeRotate.Tools
 {
     public struct Counter
     {

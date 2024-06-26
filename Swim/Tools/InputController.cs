@@ -2,7 +2,7 @@
 using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 
-namespace MonkeSwim.Tools
+namespace MonkeRotate.Tools
 {
     public struct InputState
     {

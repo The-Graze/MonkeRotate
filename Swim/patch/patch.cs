@@ -1,9 +1,9 @@
 ﻿using HarmonyLib;
 using System.Reflection;
 
-namespace MonkeSwim.Patch
+namespace MonkeRotate.Patch
 {
-    class MonkeSwimPatch
+    class MonkeRotatePatch
     {
         private static Harmony thisInstance;
 

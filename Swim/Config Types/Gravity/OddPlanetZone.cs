@@ -5,7 +5,7 @@ using UnityEditor;
 using MonkeSwim.Tools;
 #endif
 
-namespace MonkeSwim.Config
+namespace MonkeRotate.Config
 {
     public class OddPlanetZone : PlanetZone
     {

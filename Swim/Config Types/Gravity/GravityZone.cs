@@ -4,7 +4,7 @@
 using MonkeSwim.Managers;
 #endif
 
-namespace MonkeSwim.Config
+namespace MonkeRotate.Config
 {
     public class GravityZone : PlayerTrigger
     {

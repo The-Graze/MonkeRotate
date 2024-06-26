@@ -2,9 +2,9 @@
 using UnityEngine;
 using HarmonyLib;
 
-using MonkeSwim.Tools;
+using MonkeRotate.Tools;
 
-namespace MonkeSwim.Managers
+namespace MonkeRotate.Managers
 {
     public class MovementManager : MonoBehaviour
     {
@@ -45,7 +45,7 @@ namespace MonkeSwim.Managers
         }
 
         public Vector3 LookDirection {
-            get { return Camera.main.transform.forward; }
+            get { return GorillaTagger.Instance.mainCamera.transform.forward; }
         }
 
         public void Awake()
@@ -61,27 +61,12 @@ namespace MonkeSwim.Managers
             lastLeftHandPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastLeftHandPosition");
             lastRightHandPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastRightHandPosition");
             lastPlayerPosition = AccessTools.Field(typeof(GorillaLocomotion.Player), "lastPosition");
-
-            VmodMonkeMapLoader.Events.OnMapEnter += MapLeftCallback;
         }
-
-        public void OnDestroy()
-        {
-            VmodMonkeMapLoader.Events.OnMapEnter -= MapLeftCallback;
-        }
-
-        // make sure we don't go passed terminal speed if other velocity modifiers are present
         public void LateUpdate()
         {
-            // Debug.Log("MovementManager: TerimanlVelocity: " + TerminalVelocity);
-            ClampToTerminalSpeed();
-            // Debug.Log("MovmementManager: Player Velocity: " + playerRigidBody.velocity.magnitude);
-
             if(ResetPlayerRotation && !rotatePlayerAmount) {
                 RotatePlayer(Vector3.up, 90f, fixedDelta: false);
             }
-
-            UpdateGravityState();
         }
 
         public void RotatePlayer(Vector3 direction, float rotationSpeed, bool fixedDelta)
@@ -149,97 +134,6 @@ namespace MonkeSwim.Managers
             } else {
                 --rotatePlayerAmount;
             }
-        }
-
-        public void AddPlayerVelocity(Vector3 direction, float speed, float max)
-        {
-            // speed *= (fixedDelta ? Time.fixedDeltaTime : Time.deltaTime);
-
-            Vector3 velocity = playerRigidBody.velocity;
-            Vector3 newVelocity = direction * speed;
-            Vector3 maxVelocity = direction * max;
-
-            velocity.TryUpdateAndClampThis(newVelocity, maxVelocity);
-
-            playerRigidBody.velocity = velocity;
-
-            ClampToTerminalSpeed();
-        }
-
-        public void AddPlayerResistence(float resistence, bool fixedDelta)
-        {
-            // playerRigidBody.velocity = Vector3.MoveTowards(playerRigidBody.velocity, Vector3.zero, resistence * 0.001f);
-            playerRigidBody.velocity = Vector3.MoveTowards(playerRigidBody.velocity, Vector3.zero, resistence * (fixedDelta ? Time.fixedDeltaTime : Time.deltaTime));
-        }
-
-        private void ClampToTerminalSpeed()
-        {
-            Vector3 currentVelocity = playerRigidBody.velocity;
-
-            if(currentVelocity.magnitude > TerminalVelocity) {
-                currentVelocity = currentVelocity.normalized * TerminalVelocity;
-                playerRigidBody.velocity = currentVelocity;
-            }
-        }
-        public void EnableGravity(bool enable)
-        {
-            if (enable) {
-                ++enableGravityAmount;
-
-            } else {
-                --enableGravityAmount;
-            }
-
-            UpdateGravityState();
-        }
-
-        public void DisableGravity(bool disable)
-        {
-            if(disable) {
-                ++disableGravityAmount;
-
-            } else {
-                --disableGravityAmount;
-            }
-
-            UpdateGravityState();
-        }
-
-        private void UpdateGravityState()
-        {
-            if (enableGravityAmount > disableGravityAmount) {
-                playerRigidBody.useGravity = true;
-
-            } else if (enableGravityAmount < disableGravityAmount) {
-                playerRigidBody.useGravity = false;
-
-            } else {
-                playerRigidBody.useGravity = UseGravity;
-            }
-        }
-
-        private void MapLeftCallback(bool enter)
-        {
-            if (enter && !this.enabled) {
-                UpdateGravityState();
-                this.enabled = true;
-
-                enabledRotation = playerInstance != null && lastLeftHandPosition != null && lastRightHandPosition != null && lastPlayerPosition != null ;
-
-                return;
-            }
-
-            if (!this.enabled)
-                return;
-
-            enableGravityAmount.value = 0;
-            disableGravityAmount.value = 0;
-            rotatePlayerAmount.value = 0;
-
-            // playerTurnParent.transform.rotation = Patch.RotationPatch.PlayerLockedRotation;
-            SetPlayerRotation(Quaternion.FromToRotation(player.transform.up, Vector3.up) * player.transform.rotation);
-            playerRigidBody.useGravity = true;
-            this.enabled = false;
         }
     }
 }

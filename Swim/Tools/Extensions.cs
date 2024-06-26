@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MonkeSwim.Tools
+namespace MonkeRotate.Tools
 {
     public static class Extensions
     {

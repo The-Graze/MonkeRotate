@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MonkeSwim.Tools.Averages
+namespace MonkeRotate.Tools.Averages
 {
     public readonly struct AverageDirection
     {

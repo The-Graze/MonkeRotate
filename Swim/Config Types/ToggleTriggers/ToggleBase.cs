@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MonkeSwim.Config
+namespace MonkeRotate.Config
 {
     public class ToggleBase : PlayerTrigger
     {

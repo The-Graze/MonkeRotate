@@ -1,5 +1,5 @@
 ﻿
-namespace MonkeSwim.Tools.Averages
+namespace MonkeRotate.Tools.Averages
 {
     public struct SwimSettingsAverage
     {

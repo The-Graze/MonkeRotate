@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MonkeSwim.Tools.Trackers
+namespace MonkeRotate.Tools.Trackers
 {
     public class SwimHandTracker : ObjectTracker
     {

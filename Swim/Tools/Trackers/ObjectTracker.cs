@@ -1,6 +1,6 @@
 ﻿using UnityEngine;
 
-namespace MonkeSwim.Tools.Trackers
+namespace MonkeRotate.Tools.Trackers
 {
     // this could be usefull in the future
     public class ObjectTracker : MonoBehaviour

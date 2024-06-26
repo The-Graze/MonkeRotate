@@ -1,4 +1,4 @@
-﻿namespace MonkeSwim
+﻿namespace MonkeRotate
 {
     class PluginInfo
     {
